@@ -1,7 +1,6 @@
 "use strict";
 const plSelected = new Set();
 const plExpanded = new Set();
-const plSavePrefs = () => store(PREF_STORE + ".pelican", { model: $("pl-model").value, effort: $("pl-effort").value });
 
 const plKind = (r) => (r.skipped ? "skip" : r.error ? "err" : "ok");
 const PL_VERDICT = { ok: "已生成", err: "未生成", skip: "已跳过" };
@@ -72,7 +71,6 @@ function renderPelican() {
 
 function runPelican(body) {
   if (!$("pl-toolbar").reportValidity()) return;
-  plSavePrefs();
   return update("/pelican/run", { method: "POST", body: { ...body, model: $("pl-model").value, effort: $("pl-effort").value } }, "开始测试失败");
 }
 
@@ -87,8 +85,7 @@ function fitPelicanStage() {
 }
 
 function initializePelican() {
-  fillSelect("pl-effort", DEFAULT_EFFORTS, stored(PREF_STORE + ".pelican")?.effort, DEFAULT_EFFORT);
-  for (const id of ["pl-model", "pl-effort"]) $(id).addEventListener("change", plSavePrefs);
+  fillSelect("pl-effort", DEFAULT_EFFORTS, preference("pl-effort", DEFAULT_EFFORT), DEFAULT_EFFORT);
   // Closing the dialog also stops its animation.
   $("pl-detail").addEventListener("close", () => { $("pl-detail-body").innerHTML = ""; });
   addEventListener("resize", fitPelicanStage);

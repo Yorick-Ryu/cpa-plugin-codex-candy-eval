@@ -4,8 +4,6 @@ const candyExpanded = new Set();
 const candyAnswersExpanded = new Set();
 const candySelected = new Set();
 
-const candyPrefs = () => stored(PREF_STORE) || {};
-const candySavePrefs = () => store(PREF_STORE, { model: $("model").value, effort: $("effort").value, runs: candyRuns() });
 const candyRuns = () => boundedInput("runs", 1, 10);
 
 const scopeMatch = (r) => r.model === $("model").value && (r.effort || "none") === $("effort").value;
@@ -57,7 +55,6 @@ function renderCandyRow(a) {
 
 function runCandy(body) {
   if (!$("toolbar").reportValidity()) return;
-  candySavePrefs();
   return update("/run", { method: "POST", body: { ...body, model: $("model").value, effort: $("effort").value, runs: candyRuns() } }, "开始测试失败");
 }
 
@@ -76,14 +73,12 @@ function renderCandy() {
 }
 
 function initializeCandy() {
-  const saved = candyPrefs();
-  fillSelect("effort", DEFAULT_EFFORTS, saved.effort, DEFAULT_EFFORT);
-  $("runs").value = saved.runs || 1;
+  fillSelect("effort", DEFAULT_EFFORTS, preference("effort", DEFAULT_EFFORT), DEFAULT_EFFORT);
+  $("runs").value = preference("runs", 1);
   $("runs").value = candyRuns();
 
-  $("model").addEventListener("change", () => { candySavePrefs(); render(); });
-  $("effort").addEventListener("change", () => { candySavePrefs(); render(); });
-  $("runs").addEventListener("change", () => { $("runs").value = candyRuns(); candySavePrefs(); });
+  for (const id of ["model", "effort"]) $(id).addEventListener("change", render);
+  $("runs").addEventListener("change", () => { $("runs").value = candyRuns(); });
   $("rows").addEventListener("click", (e) => {
     if (e.target.closest("label")) return;
     const hit = e.target.closest("[data-auth]");

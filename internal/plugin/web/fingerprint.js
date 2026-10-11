@@ -7,7 +7,6 @@ const fpExpanded = new Set();
 
 const fpModeName = (mode) => fpModes[mode]?.name || mode || "—";
 const fpConcurrency = () => boundedInput("fp-concurrency", FP_CONFIG.default_concurrency, FP_CONFIG.max_concurrency);
-const fpSavePrefs = () => store(PREF_STORE + ".fingerprint", { model: $("fp-model").value, mode: $("fp-mode").value, concurrency: fpConcurrency() });
 
 function fpOutcome(r) {
   const status = r.status && r.status !== "completed" ? r.status : r.attribution?.status;
@@ -78,7 +77,7 @@ function renderFingerprintRow(a) {
 }
 function renderFingerprints() {
   renderSelection("fp-", fpSelected, "采集");
-  const selected = selectedCredentials("fp-", fpSelected).filter(availableCredential);
+  const selected = selectedCredentials(fpSelected).filter(availableCredential);
   $("fp-clear").disabled = pending || !credentials.some((a) => a.fingerprints?.length);
   const count = fpModes[$("fp-mode").value]?.requests || fpModes.quick.requests;
   $("fp-cost").textContent = `每个凭证 ${count} 次请求（失败会重试）${selected.length ? ` · 已选 ${selected.length} 个，共 ${count * selected.length} 次` : ""}`;
@@ -86,21 +85,19 @@ function renderFingerprints() {
 }
 function runFingerprint(body) {
   if (!$("fp-toolbar").reportValidity()) return;
-  fpSavePrefs();
   return update("/fingerprint/run", { method: "POST", body: { ...body, model: $("fp-model").value, mode: $("fp-mode").value, concurrency: fpConcurrency() } }, "开始采集失败");
 }
 
 function initializeFingerprint() {
-  const saved = stored(PREF_STORE + ".fingerprint") || {};
-  fillSelect("fp-mode", Object.entries(fpModes).map(([id, mode]) => [id, `${mode.name} · ${mode.requests} 次`]), saved.mode, "quick");
+  fillSelect("fp-mode", Object.entries(fpModes).map(([id, mode]) => [id, `${mode.name} · ${mode.requests} 次`]), preference("fp-mode", "quick"), "quick");
   $("fp-concurrency").max = FP_CONFIG.max_concurrency;
-  $("fp-concurrency").value = saved.concurrency || FP_CONFIG.default_concurrency;
+  $("fp-concurrency").value = preference("fp-concurrency", FP_CONFIG.default_concurrency);
   $("fp-concurrency").value = fpConcurrency();
 
   $("fp-detail-body").addEventListener("change", (e) => { if (e.target.id === "fp-detail-baseline") renderFingerprintProbes(); });
   $("fp-detail").addEventListener("close", () => { fpDetailRecord = null; });
 
-  for (const id of ["fp-model", "fp-mode"]) $(id).addEventListener("change", () => { fpSavePrefs(); renderFingerprints(); });
-  $("fp-concurrency").addEventListener("change", () => { $("fp-concurrency").value = fpConcurrency(); fpSavePrefs(); });
+  for (const id of ["fp-model", "fp-mode"]) $(id).addEventListener("change", renderFingerprints);
+  $("fp-concurrency").addEventListener("change", () => { $("fp-concurrency").value = fpConcurrency(); });
   bindCollectionActions({ type: "fp", scope: "fingerprint", expanded: fpExpanded, renderRows: renderFingerprints, run: runFingerprint, showDetail: showFingerprintDetail });
 }

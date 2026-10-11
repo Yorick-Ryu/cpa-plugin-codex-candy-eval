@@ -4,7 +4,6 @@ const mtSelected = new Set();
 const mtExpanded = new Set();
 const mtPercent = (value) => Number.isFinite(value) && value >= 0 && value <= 1 ? `${(value * 100).toFixed(1)}%` : "—";
 const mtConcurrency = () => boundedInput("mt-concurrency", MT_CONFIG.default_concurrency, MT_CONFIG.max_concurrency);
-const mtSavePrefs = () => store(PREF_STORE + ".modeltrace", { model: $("mt-model").value, concurrency: mtConcurrency() });
 
 function mtComparison(r) {
   if (!r?.attribution || !["completed", "partial"].includes(r.status)) return { tone: "neutral", symbol: "chart", label: "" };
@@ -40,7 +39,7 @@ function renderModelTraceRow(a) {
 
 function renderModelTrace() {
   renderSelection("mt-", mtSelected, "测试");
-  const selected = selectedCredentials("mt-", mtSelected).filter(availableCredential);
+  const selected = selectedCredentials(mtSelected).filter(availableCredential);
   $("mt-cost").textContent = `每个凭证 ${MT_CONFIG.requests} 次请求（失败会重试）${selected.length ? ` · 已选 ${selected.length} 个，共 ${MT_CONFIG.requests * selected.length} 次` : ""}`;
   $("mt-clear").disabled = pending || !credentials.some((a) => a.modeltraces?.length);
   renderList("mt-", renderModelTraceRow);
@@ -48,7 +47,6 @@ function renderModelTrace() {
 
 function runModelTrace(body) {
   if (!$("mt-toolbar").reportValidity()) return;
-  mtSavePrefs();
   return update("/modeltrace/run", { method: "POST", body: { ...body, model: $("mt-model").value, concurrency: mtConcurrency() } }, "开始测试失败");
 }
 
@@ -75,9 +73,9 @@ function showModelTraceDetail(r) {
 
 function initializeModelTrace() {
   $("mt-concurrency").max = MT_CONFIG.max_concurrency;
-  $("mt-concurrency").value = stored(PREF_STORE + ".modeltrace")?.concurrency || MT_CONFIG.default_concurrency;
+  $("mt-concurrency").value = preference("mt-concurrency", MT_CONFIG.default_concurrency);
   $("mt-concurrency").value = mtConcurrency();
-  $("mt-model").addEventListener("change", () => { mtSavePrefs(); renderModelTrace(); });
-  $("mt-concurrency").addEventListener("change", () => { $("mt-concurrency").value = mtConcurrency(); mtSavePrefs(); });
+  $("mt-model").addEventListener("change", renderModelTrace);
+  $("mt-concurrency").addEventListener("change", () => { $("mt-concurrency").value = mtConcurrency(); });
   bindCollectionActions({ type: "mt", scope: "modeltrace", expanded: mtExpanded, renderRows: renderModelTrace, run: runModelTrace, showDetail: showModelTraceDetail });
 }

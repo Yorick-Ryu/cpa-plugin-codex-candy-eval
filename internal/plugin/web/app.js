@@ -1,13 +1,13 @@
 "use strict";
 const BASE = "/v0/management/plugins/cpa-codex-candy-eval";
 const KEY_STORE = "cpa-codex-candy-eval.key";
-const PREF_STORE = "cpa-codex-candy-eval.prefs";
-const MASK_STORE = "cpa-codex-candy-eval.masked";
+const VIEW_STORE = "cpa-codex-candy-eval.view.v1.";
 const DEFAULT_MODEL = "gpt-6.1-sol";
 const DEFAULT_EFFORT = "low";
 const DEFAULT_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"];
 const HIDDEN_MODEL = (id) => id.toLowerCase().includes("image");
 const tabNames = ["candy", "fingerprint", "modeltrace", "pelican"];
+const tabPrefixes = ["", "fp-", "mt-", "pl-"];
 
 let key = "";
 let credentials = [];
@@ -21,6 +21,11 @@ let storageError = "";
 let clearScope = "candy";
 // Enable changes in flight, by credential ID; reloads keep these requested states.
 const switching = new Map();
+const credentialFilter = {
+  enabledOnly: preference("credential-filter.enabledOnly", false),
+  type: preference("credential-filter.type", "auth_files:codex"),
+  plan: preference("credential-filter.plan", "all"),
+};
 
 // The CPA management panel keeps its state in same-origin localStorage, optionally obfuscated.
 function panelValue(name) {
@@ -85,20 +90,27 @@ function stored(name) {
 function store(name, value) {
   try { localStorage.setItem(name, JSON.stringify(value)); } catch (_) {}
 }
+// Page choices are kept across visits; a saved value replaces its default only when the types match.
+function preference(name, fallback) {
+  const value = stored(VIEW_STORE + name);
+  return value !== null && typeof value === typeof fallback ? value : fallback;
+}
+function savePreference(name, value) {
+  store(VIEW_STORE + name, value);
+}
 function fillModels() {
   const ids = [...new Set(catalogCache.models?.ids || [])].sort(compareModels);
   const probeModels = ids.filter((id) => !/[()]/.test(id));
-  fillSelect("model", ids, $("model").value || candyPrefs().model, DEFAULT_MODEL);
-  fillSelect("fp-model", probeModels, $("fp-model").value || stored(PREF_STORE + ".fingerprint")?.model, DEFAULT_MODEL);
-  fillSelect("mt-model", probeModels, $("mt-model").value || stored(PREF_STORE + ".modeltrace")?.model, DEFAULT_MODEL);
-  fillSelect("pl-model", ids, $("pl-model").value || stored(PREF_STORE + ".pelican")?.model, DEFAULT_MODEL);
+  for (const [id, models] of [["model", ids], ["fp-model", probeModels], ["mt-model", probeModels], ["pl-model", ids]]) {
+    fillSelect(id, models, $(id).value || preference(id, DEFAULT_MODEL), DEFAULT_MODEL);
+  }
 }
 // Rows are keyed by credential, and an update patches only the markup that changed, so the rest keeps its
 // state, such as focus or a loaded preview.
 const renderedLists = new Map();
 function renderList(prefix, renderRow) {
   const list = $(prefix + "rows"), previous = renderedLists.get(list) || { rows: new Map(), empty: "" };
-  const visible = visibleCredentials(prefix);
+  const visible = visibleCredentials();
   if (!visible.length) {
     const message = loadController && !credentials.length ? "正在读取凭证和测试记录…" : "没有符合筛选条件的凭证，请调整筛选或在 CPA 中添加凭证。";
     const empty = `<div class="empty">${esc(loadError || message)}</div>`;
@@ -164,7 +176,7 @@ function renderPageActions() {
 function render() {
   renderPageActions();
   setNotice("storage-error", storageError);
-  for (const prefix of ["", "fp-", "mt-", "pl-"]) fillPlanFilter(prefix);
+  renderCredentialFilters();
   renderCandy();
   renderFingerprints();
   renderModelTrace();
@@ -207,7 +219,6 @@ async function load({ refresh = false } = {}) {
     credentials = stateCredentials(data);
     for (const a of credentials) if (switching.has(a.id)) a.disabled = switching.get(a.id);
     pruneCredentialCatalog();
-    fillCredentialTypes();
     storageError = data.storage_error || "";
     loadError = "";
     setNotice("load-error", "");
@@ -301,10 +312,11 @@ async function start() {
 
 function setMasked(masked) {
   document.body.classList.toggle("masked", masked);
-  for (const id of ["mask", "fp-mask", "mt-mask", "pl-mask"]) {
-    $(id).setAttribute("aria-pressed", masked);
-    $(id).innerHTML = icon(masked ? "eye" : "eye-off");
-    setLabel($(id), masked ? "取消脱敏" : "脱敏");
+  for (const prefix of tabPrefixes) {
+    const button = $(prefix + "mask");
+    button.setAttribute("aria-pressed", masked);
+    button.innerHTML = icon(masked ? "eye" : "eye-off");
+    setLabel(button, masked ? "取消脱敏" : "脱敏");
   }
 }
 function switchTab(name) {
@@ -315,7 +327,7 @@ function switchTab(name) {
     $(tab + "-panel").hidden = !active;
   }
   hideTip();
-  store(PREF_STORE + ".tab", name);
+  savePreference("tab", name);
 }
 const BUSY_TESTS = [["running", "糖果测试"], ["fingerprint_running", "指纹测试"], ["modeltrace_running", "ModelTrace 测试"], ["pelican_running", "鹈鹕测试"]];
 const busyTest = (a) => BUSY_TESTS.find(([field]) => a[field])?.[1] || "";
@@ -331,10 +343,10 @@ function runBlocker(prefix, a) {
   return pageBlocker(prefix);
 }
 const runnable = (prefix, a) => !runBlocker(prefix, a);
-const selectedCredentials = (prefix, selection) => visibleCredentials(prefix).filter((a) => selection.has(a.id));
-const batchCredentials = (prefix, selection) => {
-  const selected = selectedCredentials(prefix, selection);
-  return (selected.length ? selected : visibleCredentials(prefix)).filter(availableCredential);
+const selectedCredentials = (selection) => visibleCredentials().filter((a) => selection.has(a.id));
+const batchCredentials = (selection) => {
+  const selected = selectedCredentials(selection);
+  return (selected.length ? selected : visibleCredentials()).filter(availableCredential);
 };
 async function setCredentialEnabled(id, enabled) {
   const a = credentials.find((entry) => entry.id === id);
@@ -357,9 +369,9 @@ async function setCredentialEnabled(id, enabled) {
   if (!$("app").hidden) await load({ refresh: a.source !== "auth_files" });
 }
 function renderSelection(prefix, selection, action) {
-  const available = visibleCredentials(prefix).filter(availableCredential);
-  const selected = selectedCredentials(prefix, selection);
-  const targets = batchCredentials(prefix, selection);
+  const available = visibleCredentials().filter(availableCredential);
+  const selected = selectedCredentials(selection);
+  const targets = batchCredentials(selection);
   const button = $(prefix + "run-batch");
   button.innerHTML = `${icon("play")}${action}${selected.length ? "所选" : "全部"} (${targets.length})`;
   const blocker = pageBlocker(prefix) || (targets.length ? "" : selected.length ? "所选凭证均已停用、不可用或正在测试" : "当前列表没有可测试的凭证");
@@ -397,28 +409,42 @@ function bindCollectionActions({ type, scope, expanded, renderRows, run, showDet
 // CPA names each OpenAI-compatible provider after its config entry; they share one type.
 const providerType = (a) => a.provider === "openai-compatibility" || a.provider.startsWith("openai-compatible-") ? "openai-compatibility" : a.provider;
 const credentialType = (a) => a.source + ":" + providerType(a);
-const credentialTypeLabel = (a) => `${a.source === "ai_providers" ? "AI 提供商" : "认证文件"} · ${providerType(a)}`;
-const typedCredentials = (prefix) => credentials.filter((a) => $(prefix + "credential-type").value === "all" || credentialType(a) === $(prefix + "credential-type").value);
+function credentialTypeLabel(type) {
+  const [source, provider] = type.split(/:(.*)/);
+  return `${source === "ai_providers" ? "AI 提供商" : "认证文件"} · ${provider}`;
+}
+const ofType = (a, type) => type === "all" || credentialType(a) === type;
 const PRO_ALL = "Pro ALL";
-function visibleCredentials(prefix) {
-  const filter = $(prefix + "credential-plan").value;
-  const enabledOnly = $(prefix + "enabled-only").checked;
-  const matches = (plan) => filter === "all" || (filter === PRO_ALL ? plan?.pro : plan?.label === filter);
-  return typedCredentials(prefix).filter((a) => (!enabledOnly || !a.disabled) && matches(credentialPlan(a))).sort((a, b) => planRank(a) - planRank(b));
-}
-function fillPlanFilter(prefix) {
-  const plans = [...new Map(typedCredentials(prefix).map(credentialPlan).filter(Boolean).map((plan) => [plan.label, plan])).values()]
+// Plans of one credential type, best first, grouping Pro plans when there are several.
+function planChoices(type) {
+  const plans = [...new Map(credentials.filter((a) => ofType(a, type)).map(credentialPlan).filter(Boolean).map((plan) => [plan.label, plan])).values()]
     .sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label));
-  const groups = plans.filter((plan) => plan.pro).length > 1 ? [PRO_ALL] : [];
-  $(prefix + "plan-filter").hidden = !plans.length;
-  fillSelect(prefix + "credential-plan", [["all", "所有订阅类型"], ...groups, ...plans.map((plan) => plan.label)], $(prefix + "credential-plan").value, "all");
+  return [...(plans.filter((plan) => plan.pro).length > 1 ? [PRO_ALL] : []), ...plans.map((plan) => plan.label)];
 }
-function fillCredentialTypes() {
-  const types = new Map(credentials.map((a) => [credentialType(a), credentialTypeLabel(a)]));
-  // Keep the requested default visible even when there are no Codex files.
-  types.set("auth_files:codex", "认证文件 · codex");
-  const options = [["all", "全部凭证"], ...[...types].sort(([a], [b]) => a.localeCompare(b))];
-  for (const prefix of ["", "fp-", "mt-", "pl-"]) fillSelect(prefix + "credential-type", options, $(prefix + "credential-type").value, "auth_files:codex");
+function visibleCredentials() {
+  const { enabledOnly, type, plan } = credentialFilter;
+  const matches = (p) => plan === "all" || (plan === PRO_ALL ? p?.pro : p?.label === plan);
+  return credentials.filter((a) => ofType(a, type) && (!enabledOnly || !a.disabled) && matches(credentialPlan(a))).sort((a, b) => planRank(a) - planRank(b));
+}
+// Every card shows the filter; chosen values stay listed while no credential matches them.
+function renderCredentialFilters() {
+  const { enabledOnly, type, plan } = credentialFilter;
+  const types = [...new Set([type, ...credentials.map(credentialType)])].filter((t) => t !== "all").sort((a, b) => a.localeCompare(b));
+  const plans = [...new Set([...planChoices(type), plan])].filter((p) => p !== "all");
+  for (const prefix of tabPrefixes) {
+    $(prefix + "enabled-only").checked = enabledOnly;
+    fillSelect(prefix + "credential-type", [["all", "全部凭证"], ...types.map((t) => [t, credentialTypeLabel(t)])], type);
+    fillSelect(prefix + "credential-plan", [["all", "所有订阅类型"], ...plans], plan);
+    $(prefix + "plan-filter").hidden = !plans.length;
+  }
+}
+function setCredentialFilter(change) {
+  for (const [name, value] of Object.entries(change)) {
+    credentialFilter[name] = value;
+    savePreference("credential-filter." + name, value);
+  }
+  for (const selection of [candySelected, fpSelected, mtSelected, plSelected]) selection.clear();
+  render();
 }
 
 function initializeLayout() {
@@ -459,13 +485,22 @@ applyTheme();
 addEventListener("storage", applyTheme);
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 
-setMasked(stored(MASK_STORE) === true);
-$("mask").addEventListener("click", () => {
-  const masked = !document.body.classList.contains("masked");
-  setMasked(masked);
-  store(MASK_STORE, masked);
-});
-for (const id of ["fp-mask", "mt-mask", "pl-mask"]) $(id).addEventListener("click", () => $("mask").click());
+// Masking and credential filters apply to every tab, whichever card changes them.
+setMasked(preference("masked", false));
+renderCredentialFilters();
+for (const prefix of tabPrefixes) {
+  $(prefix + "mask").addEventListener("click", () => {
+    const masked = !document.body.classList.contains("masked");
+    setMasked(masked);
+    savePreference("masked", masked);
+  });
+  $(prefix + "enabled-only").addEventListener("change", (e) => setCredentialFilter({ enabledOnly: e.target.checked }));
+  $(prefix + "credential-type").addEventListener("change", (e) => {
+    const type = e.target.value;
+    setCredentialFilter({ type, plan: planChoices(type).includes(credentialFilter.plan) ? credentialFilter.plan : "all" });
+  });
+  $(prefix + "credential-plan").addEventListener("change", (e) => setCredentialFilter({ plan: e.target.value }));
+}
 
 for (const [id, scope] of [["clear", "candy"], ["fp-clear", "fingerprint"], ["mt-clear", "modeltrace"], ["pl-clear", "pelican"], ["clear-all", "all"]]) {
   $(id).addEventListener("click", () => {
@@ -496,17 +531,19 @@ for (const name of tabNames) {
     switchTab(next); $("tab-" + next).focus();
   });
 }
-switchTab(tabNames.includes(stored(PREF_STORE + ".tab")) ? stored(PREF_STORE + ".tab") : "candy");
+const savedTab = preference("tab", "candy");
+switchTab(tabNames.includes(savedTab) ? savedTab : "candy");
 
 for (const [prefix, type, selection, submit] of [["", "candy", candySelected, runCandy], ["fp-", "fp", fpSelected, runFingerprint], ["mt-", "mt", mtSelected, runModelTrace], ["pl-", "pl", plSelected, runPelican]]) {
-  for (const filter of ["credential-type", "credential-plan", "enabled-only"]) $(prefix + filter).addEventListener("change", () => { selection.clear(); render(); });
+  // Each test keeps its own settings, saved by control after the control normalizes its value.
+  $(prefix + "toolbar").addEventListener("change", (e) => savePreference(e.target.id, e.target.type === "number" ? e.target.valueAsNumber : e.target.value));
   $(prefix + "toolbar").addEventListener("submit", (e) => {
     e.preventDefault();
-    const ids = batchCredentials(prefix, selection).map((a) => a.id);
+    const ids = batchCredentials(selection).map((a) => a.id);
     if (ids.length) submit({ auth_ids: ids });
   });
   $(prefix + "select-all").addEventListener("change", (e) => {
-    for (const a of visibleCredentials(prefix)) {
+    for (const a of visibleCredentials()) {
       if (!e.target.checked) selection.delete(a.id);
       else if (availableCredential(a)) selection.add(a.id);
     }
