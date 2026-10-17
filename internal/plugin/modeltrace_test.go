@@ -309,7 +309,7 @@ func TestModelTraceConcurrencyAndNoTemperature(t *testing.T) {
 }
 
 func TestModelTraceAssetsEmbedded(t *testing.T) {
-	for _, content := range []string{`id="tab-modeltrace"`, `id="mt-principle"`, `"requests":3`, `"default_concurrency":3`, "https://github.com/xqy2006/ModelTrace", modelTraceLicense} {
+	for _, content := range []string{`"requests":3`, `"default_concurrency":3`, "https://github.com/xqy2006/ModelTrace", modelTraceLicense} {
 		if !strings.Contains(string(uiHTML), content) {
 			t.Fatalf("missing embedded content: %q", content)
 		}

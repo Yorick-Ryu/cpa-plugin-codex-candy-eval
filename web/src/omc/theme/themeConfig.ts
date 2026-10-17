@@ -1,0 +1,338 @@
+import { theme, type ThemeConfig } from 'antd';
+
+import { THREAD_FILL_SHARES, THREAD_RADII, type ResolvedPalette, type ThemePalette } from './palette';
+
+/**
+ * The palette projected onto Ant Design, and onto the stylesheet's custom properties.
+ *
+ * This module computes nothing about colour. A palette is resolved once in `palette.ts`, and this
+ * is one of the surfaces that reads it - the same way the chart runtime, the Monaco editor and the
+ * brand artwork do. That separation is why a custom palette reaches every one of those surfaces
+ * without any of them knowing custom palettes exist. Phone layouts use the existing spacing scale
+ * in CSS; shared component tokens keep their desktop sizes.
+ */
+
+/**
+ * A named motion token, in the shape both consumers read it: WAAPI takes an `EffectTiming` (which is
+ * this with every field optional) and the chart library takes `duration?: number` with an easing
+ * string, so naming the two fields is what lets one token serve both without a cast.
+ */
+export interface MotionToken {
+  readonly duration: number;
+  readonly easing: string;
+}
+
+/**
+ * docs/design.md §7's `roll` token: the dashboard's KPI readouts sweeping to a new value, and the
+ * AntV marks behind them morphing between two revisions.
+ *
+ * The only motion in the console longer than `base`, and the only one allowed to run on a poll the
+ * reader did not ask for - §7 rules 8 and 5 scope it, and ADR 0007 / ADR 0008 record the trade-off.
+ * It lives here rather than in the components that consume it because it is a design token: a digit
+ * move at `base` is indistinguishable from a redraw, which is the state 240ms exists to leave.
+ */
+export const MOTION_ROLL: MotionToken = { duration: 240, easing: 'cubic-bezier(0.2, 0, 0, 1)' };
+
+/**
+ * Glyph presence within a readout - a digit entering or leaving the number - on the `base` token.
+ *
+ * A presence fade is not the readout's motion but the acknowledgement that its digit count changed,
+ * and holding it to `base` is what stops an arriving `,000` from trailing the sweep over `roll`.
+ */
+export const MOTION_ROLL_PRESENCE: MotionToken = { duration: 100, easing: 'cubic-bezier(0.2, 0, 0, 1)' };
+
+/**
+ * docs/design.md §7's `scroll` token: one wheel notch or scrolling key gliding to where it would have
+ * jumped (`web/src/utils/scrollSmoothing.ts`).
+ *
+ * Long enough that a 100px notch reads as travel rather than a cut, short enough that a turning
+ * wheel never trails the hand: each notch retargets the glide, so the token bounds the lag behind the
+ * last notch, not the length of a scroll. The easing is easeOutCubic, spelled here as its CSS curve,
+ * rather than the console's `ease`: that curve starts at rest, and a glide restarted at every notch
+ * would stall at each one.
+ */
+export const MOTION_SCROLL: MotionToken = { duration: 160, easing: 'cubic-bezier(0.33, 1, 0.68, 1)' };
+
+/**
+ * docs/design.md §7's `route` token: one hop of a stored request travelling the routing map, from
+ * the caller to the gateway or from the gateway to the credential that answered it.
+ *
+ * The only motion that runs on a live signal rather than on an action or a poll (§7 rule 9). It is
+ * longer than `roll` because the reader has to follow a point across most of the map's width, which
+ * a quarter second does not allow; it is a fixed length rather than one scaled by distance so a
+ * reroute's second hop lands on the same beat as a first. The easing starts and ends at rest, unlike
+ * the console's `ease`, because the hop begins at one node and settles on another.
+ */
+export const MOTION_ROUTE: MotionToken = { duration: 300, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' };
+
+/** The answering credential's acknowledgement when a hop lands on it: one fade, never repeated. */
+export const MOTION_ROUTE_LAND: MotionToken = { duration: 420, easing: 'cubic-bezier(0.2, 0, 0, 1)' };
+
+/**
+ * A routing-map node or lane lighting as a request reaches it and settling back: the light rises
+ * over the first sixth and decays over the rest, so a card glows as the dot docks and cools while the
+ * reader's eye moves on, instead of blinking.
+ */
+export const MOTION_ROUTE_GLOW: MotionToken = { duration: 1200, easing: 'cubic-bezier(0.3, 0, 0.2, 1)' };
+
+/**
+ * A routing-map row sliding to close or open a gap as rows enter and leave the rolling minute. On
+ * the decelerating curve, so the column settles rather than stops.
+ */
+export const MOTION_ROUTE_PRESENCE: MotionToken = { duration: 300, easing: 'cubic-bezier(0.2, 0, 0, 1)' };
+
+/**
+ * A routing-map row arriving: it fades in while drifting a few pixels from its own edge of the map,
+ * on the console's decelerating curve. Longer than a transition because a row arriving is an event
+ * the reader should notice, and never past its target: the console has no bounce (§7).
+ */
+export const MOTION_ROUTE_ENTER: MotionToken = { duration: 300, easing: 'cubic-bezier(0.2, 0, 0, 1)' };
+
+/** A routing-map row leaving the minute: shorter than its arrival and accelerating away. */
+export const MOTION_ROUTE_EXIT: MotionToken = { duration: 200, easing: 'cubic-bezier(0.4, 0, 1, 1)' };
+
+/** A live label repeats this glyph-only sweep; unlike a transition, its period lasts with the work. */
+export const MOTION_LIVE_TEXT: MotionToken = { duration: 900, easing: 'linear' };
+
+export function createThemeConfig(resolved: Pick<ResolvedPalette, 'mode' | 'palette'>): ThemeConfig {
+  const dark = resolved.mode === 'dark';
+  const t = resolved.palette;
+
+  const noShadow = {
+    boxShadow: 'none',
+    boxShadowSecondary: 'none',
+    boxShadowTertiary: 'none',
+    boxShadowCard: 'none',
+    boxShadowDrawerUp: 'none',
+    boxShadowDrawerDown: 'none',
+    boxShadowDrawerLeft: 'none',
+    boxShadowDrawerRight: 'none',
+  } as const;
+
+  return {
+    algorithm: dark ? theme.darkAlgorithm : theme.defaultAlgorithm,
+    token: {
+      // The custom properties rather than a family list: the operator's typeface choice is
+      // written to them on the root element, so Ant Design's components follow it like the
+      // stylesheet does without the theme being rebuilt.
+      fontFamily: 'var(--font-ui)',
+      fontFamilyCode: 'var(--font-mono)',
+      fontSize: 14,
+      fontSizeSM: 13,
+      fontSizeLG: 16,
+      fontSizeXL: 20,
+      fontSizeHeading1: 24,
+      fontSizeHeading2: 20,
+      fontSizeHeading3: 16,
+      fontSizeHeading4: 14,
+      ...noShadow,
+
+      colorPrimary: t.accentHover,
+      colorPrimaryHover: t.accentActive,
+      colorPrimaryActive: t.accentActive,
+      colorInfo: t.accent,
+      colorLink: t.accent,
+      colorLinkHover: t.accent,
+      colorSuccess: t.success,
+      colorWarning: t.warn,
+      colorError: t.danger,
+
+      colorTextBase: t.fg,
+      colorBgBase: t.bg,
+      colorText: t.fg,
+      colorTextSecondary: t.fg2,
+      colorTextTertiary: t.muted,
+      colorTextQuaternary: t.meta,
+      colorBorder: t.border,
+      colorBorderSecondary: t.borderSoft,
+      colorSplit: t.borderSoft,
+      colorBgContainer: t.bg,
+      colorBgElevated: t.elevated,
+      colorBgLayout: t.bg,
+      colorFillTertiary: t.surface,
+      colorFillQuaternary: t.surface,
+      colorBgSpotlight: t.tooltipBg,
+
+      borderRadius: 4,
+      borderRadiusLG: 6,
+      borderRadiusSM: 4,
+      wireframe: false,
+      motionDurationFast: '0.05s',
+      motionDurationMid: '0.1s',
+      motionDurationSlow: '0.1s',
+    },
+    components: {
+      Layout: {
+        bodyBg: t.bg,
+        headerBg: t.bg,
+        headerHeight: 56,
+        headerPadding: '0 24px 0 16px',
+        siderBg: t.bg,
+      },
+      Menu: {
+        itemBg: t.bg,
+        darkItemBg: t.bg,
+        subMenuItemBg: t.bg,
+        darkSubMenuItemBg: t.bg,
+        popupBg: t.elevated,
+        itemHeight: 34,
+        iconMarginInlineEnd: 10,
+        itemBorderRadius: 4,
+        itemColor: t.muted,
+        darkItemColor: t.muted,
+        itemHoverColor: t.fg,
+        darkItemHoverBg: t.hover,
+        darkItemHoverColor: t.fg,
+        itemSelectedBg: 'transparent',
+        itemSelectedColor: t.fg,
+        darkItemSelectedBg: 'transparent',
+        darkItemSelectedColor: t.fg,
+        activeBarBorderWidth: 0,
+      },
+      Card: {
+        ...noShadow,
+        paddingLG: 20,
+        borderRadiusLG: 4,
+        colorBorderSecondary: t.border,
+      },
+      Table: {
+        headerBg: t.surface,
+        borderColor: t.borderSoft,
+        rowHoverBg: t.rowHover,
+        headerColor: t.muted,
+        cellPaddingBlockSM: 8,
+        cellPaddingInlineSM: 12,
+        fontSize: 13.5,
+        fontSizeSM: 13,
+        headerSplitColor: 'transparent',
+      },
+      // Request rows supply their own padding. This token keeps Listy's initial
+      // height estimate near their 68 px minimum instead of mounting extra rows.
+      Listy: { itemPaddingBlock: 23 },
+      Button: {
+        controlHeight: 32,
+        controlHeightSM: 28,
+        fontSizeSM: 13,
+        fontWeight: 500,
+        // The label of a filled primary control. Ant Design derives this token from
+        // `colorTextLightSolid`, which is white in every palette, so a palette whose accent fill is
+        // light would otherwise draw a white label on it. `accentOn` is solved by the derivation, so
+        // this is the same value on a built-in palette and on an operator's own.
+        primaryColor: t.accentOn,
+        // The ink an outlined button - default or dashed - takes under the pointer and while pressed.
+        // Ant Design derives all four from `colorPrimaryHover` and `colorPrimaryActive`, which this
+        // config points at `accentActive` so that a filled control deepens. That step is a fill: it is
+        // solved to carry `accentOn`, not to be read against the page, and as a label on `bg` it
+        // measured 2.70:1 in OMC Dark and 2.69:1 in Midnight. `accent` is the ladder's text step - the
+        // one the palette editor reports against 4.5:1 on the page - and the ink a row action already
+        // takes on hover. Pressed keeps the hover ink, as the filled control's pressed fill keeps its
+        // hover fill.
+        defaultHoverColor: t.accent,
+        defaultHoverBorderColor: t.accent,
+        defaultActiveColor: t.accent,
+        defaultActiveBorderColor: t.accent,
+        primaryShadow: 'none',
+        defaultShadow: 'none',
+        dangerShadow: 'none',
+        iconGap: 6,
+      },
+      Input: {
+        controlHeight: 32,
+        controlHeightSM: 28,
+        fontSizeSM: 13,
+        activeBorderColor: t.accent,
+        hoverBorderColor: t.muted,
+        activeShadow: `0 0 0 2px ${t.accent}22`,
+      },
+      InputNumber: {
+        controlHeight: 32,
+        controlHeightSM: 28,
+        fontSizeSM: 13,
+        activeBorderColor: t.accent,
+        hoverBorderColor: t.muted,
+        activeShadow: `0 0 0 2px ${t.accent}22`,
+      },
+      Segmented: {
+        controlHeight: 32,
+        controlHeightSM: 28,
+        fontSizeSM: 13,
+        trackBg: dark ? t.bg : t.border,
+        itemSelectedBg: dark ? t.border : t.elevated,
+        itemColor: t.fg2,
+        itemSelectedColor: t.fg,
+        itemHoverBg: 'transparent',
+      },
+      Tabs: {
+        horizontalItemPadding: '8px 4px',
+        horizontalMargin: '0 0 16px 0',
+        itemSelectedColor: t.fg,
+        itemHoverColor: t.fg,
+        titleFontSizeSM: 13.5,
+        titleFontSize: 14,
+      },
+      Drawer: { ...noShadow },
+      Modal: { ...noShadow },
+      Popover: { ...noShadow, colorBgElevated: t.elevated },
+      Dropdown: { ...noShadow, colorBgElevated: t.elevated },
+      Select: { optionSelectedBg: t.selected, optionSelectedColor: t.fg, colorBgElevated: t.elevated },
+      Tooltip: { colorBgSpotlight: t.tooltipBg },
+      Tag: { borderRadiusSM: 4, defaultBg: t.bg },
+      Progress: { remainingColor: t.border },
+      Descriptions: { itemPaddingBottom: 10 },
+      Statistic: { contentFontSize: 26 },
+      // Every toast is one width - a report with file names and reasons included - because antd
+      // lays toasts out in a column of this width, and a wider notice would overhang it.
+      Notification: { width: 420, borderRadiusLG: 4, colorBgElevated: t.elevated },
+      Empty: { colorIcon: t.meta },
+      Spin: { colorPrimary: t.muted },
+    },
+  };
+}
+
+export function themePaletteCssVariables(palette: ThemePalette): Record<string, string> {
+  const variables: Record<string, string> = {
+    '--bg': palette.bg,
+    '--surface': palette.surface,
+    '--bg-surface': palette.surface,
+    '--elevated': palette.elevated,
+    '--fg': palette.fg,
+    '--fg-2': palette.fg2,
+    '--muted': palette.muted,
+    '--meta': palette.meta,
+    '--border': palette.border,
+    '--border-soft': palette.borderSoft,
+    '--hover': palette.hover,
+    '--hover-inset': palette.hoverInset,
+    '--selected-inset': palette.selected,
+    '--accent': palette.accent,
+    '--accent-hover': palette.accentHover,
+    '--accent-active': palette.accentActive,
+    '--accent-on': palette.accentOn,
+    '--success': palette.success,
+    '--warn': palette.warn,
+    '--danger': palette.danger,
+    '--cache-rate-yellow': palette.cacheRateYellow,
+    '--cache-rate-green': palette.cacheRateGreen,
+    '--heatmap-quiet': palette.heatmapQuiet,
+    '--heatmap-busy': palette.heatmapBusy,
+    '--heatmap-zero-unrecorded': palette.heatmapZeroUnrecorded,
+    '--heatmap-zero-recorded': palette.heatmapZeroRecorded,
+    '--heatmap-tip-link': palette.heatmapTipLink,
+    '--series-track': palette.seriesTrack,
+    '--motion-live-text': `${MOTION_LIVE_TEXT.duration}ms`,
+    '--radius-document': `${THREAD_RADII.document}px`,
+    '--radius-control': `${THREAD_RADII.control}px`,
+    '--radius-surface': `${THREAD_RADII.surface}px`,
+    '--radius-thread': `${THREAD_RADII.thread}px`,
+    '--thread-field': `color-mix(in srgb, var(--fg) ${THREAD_FILL_SHARES.field}%, transparent)`,
+    '--thread-field-hover': `color-mix(in srgb, var(--fg) ${THREAD_FILL_SHARES.fieldHover}%, transparent)`,
+    '--thread-hairline': `color-mix(in srgb, var(--fg) ${THREAD_FILL_SHARES.hairline}%, transparent)`,
+  };
+  palette.series.forEach((color, index) => {
+    variables[`--series-${index + 1}`] = color;
+  });
+  palette.effort.forEach((color, index) => {
+    variables[`--effort-${index + 1}`] = color;
+  });
+  return variables;
+}

@@ -12,7 +12,9 @@
 
 - `cmd/cpa-codex-candy-eval/`: shared-library entry point and C ABI bridge.
 - `internal/plugin/`: plugin handlers, test runners, persistence, and Go tests.
-- `internal/plugin/web/`: embedded management page.
+- `web/src/`: React/Ant Design management page and vendored OMC components.
+- `internal/plugin/web/react/`: committed frontend bundle embedded by Go; rebuild from `web/`.
+- `internal/plugin/web/`: host theme bridge, vendor renderers, and legacy identity/catalog helpers.
 - `internal/plugin/web/vendor/`: vendored Markdown (markdown-it with
   markdown-it-cjk-friendly) and math (markdown-it-texmath, Temml) renderers
   for candy answers.
@@ -26,6 +28,12 @@
 - `dist/`: ignored build artifacts.
 
 ## Build and Checks
+
+After frontend changes, run `npm ci --prefix web`, `npm --prefix web run check`,
+`npm --prefix web run build`, `node scripts/test-react.mjs`,
+`node scripts/test-components.cjs`, and `node scripts/test-theme.cjs`.
+The component suite uses only a local synthetic CPA fixture. Commit the rebuilt
+`internal/plugin/web/react/` bundle; CI verifies it matches the source.
 
 Run `gofmt` on changed Go files; run `go vet ./...` and `go test -race ./...`
 for code changes. Update tests when behavior changes.

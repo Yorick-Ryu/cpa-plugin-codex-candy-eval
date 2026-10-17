@@ -1,36 +1,326 @@
-// Local-only preview with synthetic credentials. Never connects to CPA.
-const fs = require('node:fs');
-const path = require('node:path');
-const http = require('node:http');
-const web = path.join(__dirname, '../internal/plugin/web');
-const read = name => fs.readFileSync(path.join(web, name), 'utf8');
-const result = (ok, error) => ({time: '2026-10-17T12:30:00Z', model:'gpt-6.1-sol', effort:'low', ok, answer:ok ? '**答案：**21。经过逐项计算，共有 21 颗糖果。' : '答案是 18。', error, duration_ms:12540, input_tokens:14449, output_tokens:664, reasoning_tokens:368});
-const auths = [
-  ['workspace-alpha@example.test', 'team', [result(true), result(true), result(true)]],
-  ['workspace-beta@example.test', 'team', [result(true), result(false)]],
-  ['workspace-gamma@example.test', 'plus', [result(false, '上游请求超时，请稍后重试。')]],
-  ['workspace-delta@example.test', 'pro', []],
-].map(([id,plan_type,results],i) => ({id, name:id, source:'auth_files', provider:'codex', plan_type, disabled:i===3, results, fingerprints:[], modeltraces:[], pelicans:[]}));
-let html = read('ui.html');
-const scripts = {MARKDOWN:'vendor/markdown-it.min.js', CJK_FRIENDLY:'vendor/markdown-it-cjk-friendly.min.js', TEXMATH:'vendor/texmath.js', TEMML:'vendor/temml.min.js', CREDENTIALS:'credentials.js', CATALOG:'catalog.js', COMPONENTS:'components.js', CANDY:'candy.js', FINGERPRINT:'fingerprint.js', MODELTRACE:'modeltrace.js', PELICAN:'pelican.js', THEME:'theme.js', APP:'app.js'};
-for (const [marker,file] of Object.entries(scripts)) {
-  let script = read(file).replace('/*FINGERPRINT_CONFIG*/{}', JSON.stringify({modes:[{id:'quick',name:'快速',cells:4,samples_per_cell:15}],default_concurrency:2,max_concurrency:6})).replace('/*MODELTRACE_CONFIG*/{}', '{"requests":3,"default_concurrency":3,"max_concurrency":3}');
-  if (marker === 'APP') script = script.slice(0,script.lastIndexOf('key = panelKey();')) + `
-    credentials = ${JSON.stringify(auths)};
-    catalogCache.models = {time: Date.now(), ids: ['gpt-6.1-sol','gpt-6-astra','gpt-5.6-sol']};
-    fillModels(); document.getElementById('app').hidden = false; render();
-    document.querySelector('.edition').textContent = 'LOCAL PREVIEW';
-  `;
-  html = html.replace('/*'+marker+'_SCRIPT*/', () => script);
-}
-html = html.replace('/*APP_STYLES*/', () => read('vendor/temml.css')+'\n'+read('theme.css')+'\n'+read('style.css')).replace('<!--PLUGIN_VERSION-->','0.3.16-omc.1').replace('<!--CANDY_PROMPT-->','此处展示糖果题原文；预览使用合成数据。').replace('<!--PELICAN_PROMPT-->','绘制鹈鹕骑自行车的 SVG 动画。');
-const root = (mode) => `<!doctype html><html data-theme-mode="${mode}" style="--bg:${mode==='dark'?'#121214':'#fff'};--fg:${mode==='dark'?'#f4f4f6':'#1c1c1e'};--font-ui:ui-monospace,monospace"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:var(--bg)}nav{padding:12px 24px;color:var(--fg);font:12px monospace;border-bottom:1px solid #71717a}iframe{border:0;width:100%;height:calc(100dvh - 42px)}</style><nav>OH MY CPA / 插件 / Codex 降智测试 <button onclick="document.documentElement.dataset.themeMode=document.documentElement.dataset.themeMode==='dark'?'light':'dark';document.documentElement.style.setProperty('--bg',document.documentElement.dataset.themeMode==='dark'?'#121214':'#fff');document.documentElement.style.setProperty('--fg',document.documentElement.dataset.themeMode==='dark'?'#f4f4f6':'#1c1c1e')">切换主题</button></nav><iframe title="OMC theme shell" src="/shell?mode=${mode}"></iframe></html>`;
-const server = http.createServer((req,res) => {
-  const url = new URL(req.url, 'http://127.0.0.1');
-  if (url.pathname === '/ui') { res.setHeader('Content-Type','text/html; charset=utf-8'); return res.end(html); }
-  if (url.pathname === '/shell') { res.setHeader('Content-Type','text/html; charset=utf-8'); return res.end(`<!doctype html><html data-theme="${url.searchParams.get('mode')==='light'?'light':'dark'}"><style>html,body,iframe{margin:0;border:0;width:100%;height:100%;display:block}</style><iframe title="Codex 降智测试" src="/ui"></iframe></html>`); }
-  if (url.pathname === '/') { res.setHeader('Content-Type','text/html; charset=utf-8'); return res.end(root(url.searchParams.get('theme')==='light'?'light':'dark')); }
-  // Deliberately disallow all API writes and external forwarding.
-  res.writeHead(403, {'Content-Type':'application/json'}); res.end('{"error":"本地预览不执行管理操作或模型请求"}');
+// Local-only CPA fixture. Every credential and response below is synthetic.
+const fs = require("node:fs");
+const path = require("node:path");
+const http = require("node:http");
+const web = path.join(__dirname, "../internal/plugin/web");
+const read = (n) => fs.readFileSync(path.join(web, n), "utf8");
+const models = ["gpt-6.1-sol", "gpt-6-astra", "gpt-5.6-sol"];
+const result = (ok, error) => ({
+  time: "2026-10-17T12:30:00Z",
+  model: models[0],
+  effort: "low",
+  ok,
+  answer: ok
+    ? "**答案：**21。经过逐项计算，共有 $3 \\times 7 = 21$ 颗糖果。"
+    : "答案是 18。",
+  error,
+  duration_ms: 12540,
+  input_tokens: 14449,
+  output_tokens: 664,
+  reasoning_tokens: 368,
 });
-server.listen(Number(process.env.PREVIEW_PORT || 4178),'127.0.0.1', () => console.log('Synthetic OMC preview: http://127.0.0.1:'+server.address().port));
+const fp = {
+  ...result(true),
+  id: "fp-demo",
+  status: "completed",
+  mode: "quick",
+  total: 60,
+  done: 60,
+  valid: 60,
+  errors: 0,
+  attribution: {
+    status: "consistent",
+    nearest: models[0],
+    alpha: 0.05,
+    self_jsd: 0.014,
+    reference_p_value: 0.5,
+    comparisons: [
+      {
+        model: models[0],
+        mean_jsd: 0.012,
+        p_value: 0.64,
+        verdict: "match",
+        cells: [
+          {
+            cell: "random-number-1-100:zh",
+            jsd: 0.008,
+            valid_a: 15,
+            valid_b: 100,
+          },
+        ],
+      },
+    ],
+    warnings: [],
+  },
+};
+const mt = {
+  ...result(true),
+  id: "mt-demo",
+  status: "completed",
+  attribution: {
+    prediction: models[0],
+    probability: 0.91,
+    family_prediction_name: "GPT",
+    family_probability: 0.98,
+    used_outputs: 3,
+    family_probabilities: [{ display_name: "GPT", probability: 0.98 }],
+    results: [
+      { model: models[0], display_name: models[0], probability: 0.91 },
+      { model: models[1], display_name: models[1], probability: 0.07 },
+    ],
+  },
+  samples: [
+    {
+      prompt: "生成一组随机长整数。",
+      text: "1234567890",
+      parsed_numbers: 1,
+      expected_count: 1,
+      attempts: 1,
+      accepted: true,
+    },
+  ],
+};
+const pl = {
+  ...result(true),
+  id: "pl-demo",
+  html: "<!doctype html><style>body{display:grid;place-items:center;font:28px sans-serif;background:#edf6ff}span{animation:move 2s infinite alternate}@keyframes move{to{transform:translateX(100px)}}</style><span>🦤 🚲</span>",
+};
+const auths = [
+  [
+    "workspace-alpha@example.test",
+    "team",
+    [result(true), result(true), result(true)],
+  ],
+  ["workspace-beta@example.test", "team", [result(true), result(false)]],
+  [
+    "workspace-gamma@example.test",
+    "plus",
+    [result(false, "上游请求超时，请稍后重试。")],
+  ],
+  ["workspace-delta@example.test", "pro", []],
+].map(([id, plan_type, results], i) => ({
+  id,
+  name: id,
+  source: "auth_files",
+  provider: "codex",
+  plan_type,
+  priority: 10,
+  disabled: i === 3,
+  results,
+  fingerprints: i === 0 ? [fp] : [],
+  modeltraces: i === 0 ? [mt] : [],
+  pelicans: i === 0 ? [{ ...pl, html: undefined }] : [],
+}));
+const config = {
+  fingerprint: {
+    modes: [
+      { id: "quick", name: "快速", cells: 4, samples_per_cell: 15 },
+      { id: "standard", name: "标准", cells: 8, samples_per_cell: 25 },
+      { id: "strict", name: "严格", cells: 16, samples_per_cell: 25 },
+    ],
+    default_concurrency: 2,
+    max_concurrency: 6,
+  },
+  modeltrace: { requests: 3, default_concurrency: 3, max_concurrency: 3 },
+};
+function page() {
+  let html = read("ui.html");
+  const replacements = {
+    APP: "react/app.js",
+    THEME: "theme.js",
+    MARKDOWN: "vendor/markdown-it.min.js",
+    CJK_FRIENDLY: "vendor/markdown-it-cjk-friendly.min.js",
+    TEXMATH: "vendor/texmath.js",
+    TEMML: "vendor/temml.min.js",
+  };
+  for (const [marker, file] of Object.entries(replacements))
+    html = html.replace("/*" + marker + "_SCRIPT*/", () => read(file));
+  const prompt = (file) => {
+    const text = fs.readFileSync(
+      path.join(__dirname, "../internal/plugin", file),
+      "utf8",
+    );
+    const raw = text.match(/const candyPrompt = `([\s\S]*?)`/);
+    const value = raw
+      ? raw[1]
+      : text
+          .match(/const pelicanPrompt = ([\s\S]*?)\n\n/)[1]
+          .match(/"(?:\\.|[^"\\])*"/g)
+          .map((part) => JSON.parse(part))
+          .join("");
+    return value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;");
+  };
+  return html
+    .replace(
+      "/*APP_STYLES*/",
+      () =>
+        read("vendor/temml.css") +
+        "\n" +
+        read("theme.css") +
+        "\n" +
+        read("react/app.css"),
+    )
+    .replace("/*REACT_CONFIG*/{}", () => JSON.stringify(config))
+    .replace("<!--PLUGIN_VERSION-->", "0.3.16-omc.2")
+    .replace("<!--CANDY_PROMPT-->", () => prompt("candy.go"))
+    .replace("<!--PELICAN_PROMPT-->", () => prompt("pelican.go"))
+    .replace(
+      "<script>window.CANDY_CONFIG",
+      '<script>sessionStorage.setItem("cpa-codex-candy-eval.key","synthetic-preview-management");</script><script>window.CANDY_CONFIG',
+    );
+}
+const root = (mode) =>
+  `<!doctype html><html data-theme-mode="${mode}" style="--bg:${mode === "dark" ? "#121214" : "#fff"};--fg:${mode === "dark" ? "#f4f4f6" : "#1c1c1e"};--font-ui:ui-monospace,monospace"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:var(--bg)}nav{display:flex;gap:16px;align-items:center;padding:12px 24px;color:var(--fg);font:12px monospace;border-bottom:1px solid #71717a}iframe{border:0;width:100%;height:calc(100dvh - 46px)}</style><nav>OH MY CPA / 插件 / Codex 降智测试 <span style="opacity:.5">本地合成数据</span><button onclick="document.documentElement.dataset.themeMode=document.documentElement.dataset.themeMode==='dark'?'light':'dark';document.documentElement.style.setProperty('--bg',document.documentElement.dataset.themeMode==='dark'?'#121214':'#fff');document.documentElement.style.setProperty('--fg',document.documentElement.dataset.themeMode==='dark'?'#f4f4f6':'#1c1c1e')">切换主题</button><button onclick="document.documentElement.style.setProperty('--accent','#0f766e');document.documentElement.style.setProperty('--accent-hover','#0b5f59');document.documentElement.style.setProperty('--accent-active','#084c47')">自定义绿色</button></nav><iframe title="OMC theme shell" src="/shell?mode=${mode}"></iframe></html>`;
+const send = (res, data, status = 200) => {
+  res.writeHead(status, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(data));
+};
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, "http://127.0.0.1");
+  let body = {};
+  try {
+    let text = "";
+    for await (const chunk of req) text += chunk;
+    if (text) body = JSON.parse(text);
+  } catch {
+    return send(res, { error: "invalid fixture request" }, 400);
+  }
+  if (url.pathname === "/ui") {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'",
+    );
+    return res.end(page());
+  }
+  if (url.pathname === "/shell") {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.end(
+      `<!doctype html><html data-theme="${url.searchParams.get("mode") === "light" ? "light" : "dark"}"><style>html,body,iframe{margin:0;border:0;width:100%;height:100%;display:block}</style><iframe title="Codex 降智测试" src="/ui"></iframe></html>`,
+    );
+  }
+  if (url.pathname === "/") {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    return res.end(
+      root(url.searchParams.get("theme") === "light" ? "light" : "dark"),
+    );
+  }
+  if (url.pathname === "/v0/management/config")
+    return send(res, { "api-keys": ["synthetic-preview-client"] });
+  if (url.pathname === "/v8/management/config/api-keys") return send(res, {});
+  if (url.pathname === "/v1/models")
+    return send(res, { data: models.map((id) => ({ id })) });
+  if (url.pathname === "/v0/management/auth-files/models")
+    return send(res, { models: models.map((id) => ({ id })) });
+  if (url.pathname === "/v0/management/auth-files/status") {
+    const a = auths.find((a) => a.id === body.name);
+    if (a) a.disabled = body.disabled;
+    return send(res, { status: "ok" });
+  }
+  const base = "/v0/management/plugins/cpa-codex-candy-eval";
+  if (url.pathname === base + "/credentials/sync")
+    return send(res, { ok: true });
+  if (url.pathname === base + "/state")
+    return send(res, { auths, storage_error: "" });
+  if (url.pathname.endsWith("/record"))
+    return send(
+      res,
+      url.pathname.includes("/fingerprint/")
+        ? fp
+        : url.pathname.includes("/modeltrace/")
+          ? mt
+          : pl,
+    );
+  if (url.pathname.startsWith(base) && url.pathname.endsWith("/run")) {
+    const test = url.pathname.includes("/fingerprint/")
+      ? "fingerprint"
+      : url.pathname.includes("/modeltrace/")
+        ? "modeltrace"
+        : url.pathname.includes("/pelican/")
+          ? "pelican"
+          : "candy";
+    const fields = {
+      candy: "results",
+      fingerprint: "fingerprints",
+      modeltrace: "modeltraces",
+      pelican: "pelicans",
+    };
+    const running = {
+      candy: "running",
+      fingerprint: "fingerprint_running",
+      modeltrace: "modeltrace_running",
+      pelican: "pelican_running",
+    };
+    const targets = auths.filter(
+      (a) => body.auth_ids?.includes(a.id) && !a.disabled,
+    );
+    for (const a of targets) {
+      a[running[test]] =
+        test === "pelican"
+          ? true
+          : {
+              done: 0,
+              total: test === "fingerprint" ? 60 : 3,
+              model: body.model,
+            };
+      setTimeout(() => {
+        delete a[running[test]];
+        a[fields[test]].push({
+          ...{
+            candy: result(true),
+            fingerprint: fp,
+            modeltrace: mt,
+            pelican: { ...pl, html: undefined },
+          }[test],
+          model: body.model,
+          time: new Date().toISOString(),
+        });
+      }, 3500);
+    }
+    return send(res, {
+      started: targets.length,
+      skipped: 0,
+      busy: 0,
+      unchecked: 0,
+    });
+  }
+  if (url.pathname.startsWith(base) && url.pathname.endsWith("/cancel")) {
+    for (const a of auths) {
+      delete a.fingerprint_running;
+      delete a.modeltrace_running;
+    }
+    return send(res, { ok: true });
+  }
+  if (
+    req.method === "DELETE" &&
+    url.pathname.startsWith(base) &&
+    url.pathname.endsWith("/results")
+  ) {
+    for (const a of auths) {
+      const fields = url.pathname.includes("/all/")
+        ? ["results", "fingerprints", "modeltraces", "pelicans"]
+        : [
+            url.pathname.includes("/fingerprint/")
+              ? "fingerprints"
+              : url.pathname.includes("/modeltrace/")
+                ? "modeltraces"
+                : url.pathname.includes("/pelican/")
+                  ? "pelicans"
+                  : "results",
+          ];
+      for (const field of fields) a[field] = [];
+    }
+    return send(res, { ok: true });
+  }
+  send(res, { error: "Local fixture refuses this operation" }, 403);
+});
+module.exports = { server, page, auths, models };
+if (require.main === module)
+  server.listen(Number(process.env.PREVIEW_PORT || 4178), "127.0.0.1", () =>
+    console.log(
+      "Synthetic OMC preview: http://127.0.0.1:" + server.address().port,
+    ),
+  );

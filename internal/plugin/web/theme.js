@@ -3,7 +3,7 @@
 // No host storage or credentials are read here.
 (() => {
   const root = document.documentElement;
-  const tokens = ["bg", "surface", "elevated", "fg", "fg-2", "muted", "meta", "border", "border-soft", "hover", "accent", "accent-hover", "accent-active", "accent-on", "success", "warn", "danger", "font-ui", "font-mono"];
+  const tokens = ["bg", "surface", "elevated", "fg", "fg-2", "muted", "meta", "border", "border-soft", "hover", "accent", "accent-hover", "accent-active", "accent-on", "success", "warn", "danger", "font-ui", "font-mono", "hover-inset", "selected-inset", "tooltip-bg"];
   const ancestors = [];
   let frame = window;
   try {

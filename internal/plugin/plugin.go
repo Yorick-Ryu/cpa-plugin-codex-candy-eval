@@ -15,7 +15,7 @@ import (
 
 const (
 	pluginID       = "cpa-codex-candy-eval"
-	pluginVersion  = "0.3.16-omc.1"
+	pluginVersion  = "0.3.16-omc.2"
 	ABIVersion     = 1
 	schemaVersion  = 6
 	managementBase = "/v0/management/plugins/" + pluginID
@@ -31,7 +31,7 @@ func SetHostCall(call func(string, any) (json.RawMessage, error)) {
 //go:embed web/ui.html
 var uiTemplate string
 
-//go:embed web/style.css
+//go:embed web/react/app.css
 var uiStyles string
 
 //go:embed web/theme.css
@@ -55,52 +55,29 @@ var temmlScript string
 //go:embed web/vendor/temml.css
 var temmlStyles string
 
-//go:embed web/credentials.js
-var credentialScript string
-
-//go:embed web/app.js
+//go:embed web/react/app.js
 var appScript string
 
-//go:embed web/catalog.js
-var catalogScript string
-
-//go:embed web/components.js
-var componentsScript string
-
-//go:embed web/candy.js
-var candyScript string
-
-//go:embed web/fingerprint.js
-var fingerprintScript string
-
-//go:embed web/modeltrace.js
-var modelTraceScript string
-
-//go:embed web/pelican.js
-var pelicanScript string
+//go:embed web/omc-license.txt
+var omcLicense string
 
 var uiHTML = func() []byte {
-	config, _ := json.Marshal(map[string]any{"modes": fingerprintModes, "default_concurrency": fingerprintDefaultConcurrency, "max_concurrency": fingerprintMaxConcurrency})
-	fpScript := strings.Replace(fingerprintScript, `/*FINGERPRINT_CONFIG*/{}`, string(config), 1)
-	traceConfig, _ := json.Marshal(map[string]any{"requests": traceTarget, "default_concurrency": traceDefaultConcurrency, "max_concurrency": traceMaxConcurrency})
-	traceScript := strings.Replace(modelTraceScript, `/*MODELTRACE_CONFIG*/{}`, string(traceConfig), 1)
+	config, _ := json.Marshal(map[string]any{
+		"fingerprint": map[string]any{"modes": fingerprintModes, "default_concurrency": fingerprintDefaultConcurrency, "max_concurrency": fingerprintMaxConcurrency},
+		"modeltrace":  map[string]any{"requests": traceTarget, "default_concurrency": traceDefaultConcurrency, "max_concurrency": traceMaxConcurrency},
+	})
 	return []byte(strings.NewReplacer(
 		"/*APP_STYLES*/", temmlStyles+"\n"+uiThemes+"\n"+uiStyles,
 		"<!--PLUGIN_VERSION-->", pluginVersion,
 		"<!--CANDY_PROMPT-->", html.EscapeString(candyPrompt),
 		"<!--PELICAN_PROMPT-->", html.EscapeString(pelicanPrompt),
 		"<!--MODELTRACE_LICENSE-->", "<!-- ModelTrace\n"+modelTraceLicense+"-->",
+		"<!--OMC_LICENSE-->", "<!-- Oh My CPA components\n"+omcLicense+"-->",
+		"/*REACT_CONFIG*/{}", string(config),
 		"/*MARKDOWN_SCRIPT*/", markdownScript,
 		"/*CJK_FRIENDLY_SCRIPT*/", cjkFriendlyScript,
 		"/*TEXMATH_SCRIPT*/", texmathScript,
 		"/*TEMML_SCRIPT*/", temmlScript,
-		"/*CREDENTIALS_SCRIPT*/", credentialScript,
-		"/*CATALOG_SCRIPT*/", catalogScript,
-		"/*COMPONENTS_SCRIPT*/", componentsScript,
-		"/*CANDY_SCRIPT*/", candyScript,
-		"/*FINGERPRINT_SCRIPT*/", fpScript,
-		"/*MODELTRACE_SCRIPT*/", traceScript,
-		"/*PELICAN_SCRIPT*/", pelicanScript,
 		"/*APP_SCRIPT*/", appScript,
 		"/*THEME_SCRIPT*/", themeScript,
 	).Replace(uiTemplate))

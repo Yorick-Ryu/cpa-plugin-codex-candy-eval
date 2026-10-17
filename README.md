@@ -2,14 +2,17 @@
 
 基于 [haowang02/cpa-plugin-codex-candy-eval](https://github.com/haowang02/cpa-plugin-codex-candy-eval) 的 OMC 界面分支，保留上游 MIT 许可及测试能力。
 
-- 按 OMC 的终端扁平规范重写界面：4px 圆角、细边框、等宽字体、紧凑表格。
+- 使用 OMC 同款 React 18 + Ant Design 6 组件：按钮、选择器、输入框、标签页、表格、开关、进度条、弹窗和提示。
+- 直接复用 OMC 的 `createThemeConfig`、`StatTiles` 和 `StatusLabel` 源码，保留其 MIT 许可。
 - 自动跟随 OMC 的深浅色、自定义配色和字体；独立页面跟随系统主题。
 - 四种测试保留原协议与历史数据，新增当前筛选范围的凭证概览。
 - 插件 ID 保持 `cpa-codex-candy-eval`，用于替换原插件，不能与原版同时加载。
 
-验证：`go vet ./...`、`go test -race ./...`、`node scripts/test-ui.cjs`、`node scripts/test-theme.cjs`。
+验证：`npm ci --prefix web`、`npm --prefix web run check`、`npm --prefix web run build`、`node scripts/test-react.mjs`、`node scripts/test-components.cjs`、`node scripts/test-theme.cjs`、`go vet ./...`、`go test -race ./...`。
 
-本地预览：`node scripts/preview.cjs`，打开 `http://127.0.0.1:4178`；使用合成数据并拒绝所有 API 操作。
+本地预览：`node scripts/preview.cjs`，打开 `http://127.0.0.1:4178`；使用本地合成凭证和 API 模拟服务，不连接生产 CPA。
+
+[组件来源与构建说明](docs/omc-ui.md)
 
 ![OMC 暗色界面](docs/images/omc/dark.jpg)
 
