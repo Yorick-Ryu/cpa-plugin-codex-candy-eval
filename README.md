@@ -1,3 +1,24 @@
+# Codex Candy Eval · OMC Edition
+
+基于 [haowang02/cpa-plugin-codex-candy-eval](https://github.com/haowang02/cpa-plugin-codex-candy-eval) 的 OMC 界面分支，保留上游 MIT 许可及测试能力。
+
+- 按 OMC 的终端扁平规范重写界面：4px 圆角、细边框、等宽字体、紧凑表格。
+- 自动跟随 OMC 的深浅色、自定义配色和字体；独立页面跟随系统主题。
+- 四种测试保留原协议与历史数据，新增当前筛选范围的凭证概览。
+- 插件 ID 保持 `cpa-codex-candy-eval`，用于替换原插件，不能与原版同时加载。
+
+验证：`go vet ./...`、`go test -race ./...`、`node scripts/test-ui.cjs`、`node scripts/test-theme.cjs`。
+
+本地预览：`node scripts/preview.cjs`，打开 `http://127.0.0.1:4178`；使用合成数据并拒绝所有 API 操作。
+
+![OMC 暗色界面](docs/images/omc/dark.jpg)
+
+[浅色预览](docs/images/omc/light.jpg) · [手机预览](docs/images/omc/mobile.jpg)
+
+生产安装需要替换共享库并由宿主重新加载插件。仓库的 `scripts/deploy.sh` 会重启 CPA，执行前必须获得当前任务明确授权。界面预览和测试使用本地合成数据。
+
+---
+
 # Codex 降智测试（CLIProxyAPI 插件）
 
 在 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 管理面板中进行**糖果测试**、**模型指纹测试**、**ModelTrace 模型归因**和**鹈鹕测试**。
@@ -19,16 +40,16 @@ CPA 管理面板（CPAMC 或 CPAMP）插件商店搜索安装 `cpa-codex-candy-e
 进入 CPA 工作目录，执行对应的安装命令。macOS 和 Linux：
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/haowang02/cpa-plugin-codex-candy-eval/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/main/install.sh | sh
 ```
 
 Windows 请先停止 CPA，再在 PowerShell 中运行：
 
 ```powershell
-irm https://raw.githubusercontent.com/haowang02/cpa-plugin-codex-candy-eval/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/main/install.ps1 | iex
 ```
 
-也可以从 [Releases](https://github.com/haowang02/cpa-plugin-codex-candy-eval/releases/latest) 下载对应平台的压缩包，解压后将插件文件重命名为 `cpa-codex-candy-eval-v<版本号>.<扩展名>`，放入对应的 `plugins/<系统>/<架构>/` 目录。
+也可以从 [Releases](https://github.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/releases/latest) 下载对应平台的压缩包，解压后将插件文件重命名为 `cpa-codex-candy-eval-v<版本号>.<扩展名>`，放入对应的 `plugins/<系统>/<架构>/` 目录。
 
 在 CPA 的 `config.yaml` 中启用插件：
 
@@ -85,7 +106,7 @@ plugins:
 也可以补全下面的提示词，发给 Codex、Claude Code 等 AI 助手，让它帮你部署：
 
 ```text
-请按照 https://raw.githubusercontent.com/haowang02/cpa-plugin-codex-candy-eval/main/docs/inspection.md 中的教程，在这台机器上部署 Codex 降智测试插件的定时巡检。
+请按照 https://raw.githubusercontent.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/main/docs/inspection.md 中的教程，在这台机器上部署 Codex 降智测试插件的定时巡检。
 
 我的配置（没写的项保持脚本默认值）：
 - CPA 地址：

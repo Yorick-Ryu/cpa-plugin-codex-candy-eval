@@ -15,7 +15,7 @@ import (
 
 const (
 	pluginID       = "cpa-codex-candy-eval"
-	pluginVersion  = "0.3.15"
+	pluginVersion  = "0.3.16-omc.1"
 	ABIVersion     = 1
 	schemaVersion  = 6
 	managementBase = "/v0/management/plugins/" + pluginID
@@ -36,6 +36,9 @@ var uiStyles string
 
 //go:embed web/theme.css
 var uiThemes string
+
+//go:embed web/theme.js
+var themeScript string
 
 //go:embed web/vendor/markdown-it.min.js
 var markdownScript string
@@ -99,6 +102,7 @@ var uiHTML = func() []byte {
 		"/*MODELTRACE_SCRIPT*/", traceScript,
 		"/*PELICAN_SCRIPT*/", pelicanScript,
 		"/*APP_SCRIPT*/", appScript,
+		"/*THEME_SCRIPT*/", themeScript,
 	).Replace(uiTemplate))
 }()
 
@@ -155,8 +159,8 @@ func HandleMethod(method string, request []byte) (response []byte) {
 			"metadata": map[string]any{
 				"Name":             pluginID,
 				"Version":          pluginVersion,
-				"Author":           "haowang02",
-				"GitHubRepository": "https://github.com/haowang02/cpa-plugin-codex-candy-eval",
+				"Author":           "Yorick-Ryu / haowang02",
+				"GitHubRepository": "https://github.com/Yorick-Ryu/cpa-plugin-codex-candy-eval",
 				"Logo":             "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(logoSVG)),
 				"ConfigFields":     []any{},
 			},

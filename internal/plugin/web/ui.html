@@ -9,13 +9,14 @@
 </head>
 <body>
   <main>
-    <header>
-      <h1><i data-icon="candy"></i>Codex 降智测试</h1>
+    <header class="page-heading">
+      <div><p class="eyebrow">CODEX / EVALUATION</p><h1>Codex 降智测试</h1><p class="heading-description">检查推理表现、模型身份与代码生成能力。</p></div>
+      <span class="edition">OMC EDITION</span>
     </header>
 
     <section id="login" class="card login" hidden>
       <h2>连接 CPA</h2>
-      <p>请输入 CPA 管理密钥。登录 CPA 管理面板时勾选「记住密码」，本页会自动使用该密钥。</p>
+      <p>在 OMC 中打开时自动使用当前会话；独立访问时请输入 CPA 管理密钥。</p>
       <form id="login-form">
         <input id="login-key" type="password" autocomplete="current-password" placeholder="管理密钥" aria-label="管理密钥" required>
         <button class="btn" type="submit">连接</button>
@@ -24,12 +25,18 @@
     </section>
 
     <div id="app" hidden>
+      <section class="overview" aria-label="当前筛选凭证概览">
+        <div class="overview-cell"><span>当前凭证</span><strong id="summary-total">0</strong></div>
+        <div class="overview-cell"><span>可测试</span><strong id="summary-ready">0</strong></div>
+        <div class="overview-cell"><span>测试中</span><strong id="summary-running">0</strong></div>
+        <div class="overview-cell"><span>含历史记录</span><strong id="summary-history">0</strong></div>
+      </section>
       <div class="page-navigation card">
         <div class="tabs" role="tablist" aria-label="测试类型">
-          <button id="tab-candy" class="tab" role="tab" aria-selected="true" aria-controls="candy-panel" type="button">糖果</button>
-          <button id="tab-fingerprint" class="tab" role="tab" aria-selected="false" aria-controls="fingerprint-panel" tabindex="-1" type="button">指纹</button>
-          <button id="tab-modeltrace" class="tab" role="tab" aria-selected="false" aria-controls="modeltrace-panel" tabindex="-1" type="button">ModelTrace</button>
-          <button id="tab-pelican" class="tab" role="tab" aria-selected="false" aria-controls="pelican-panel" tabindex="-1" type="button">鹈鹕</button>
+          <button id="tab-candy" class="tab" role="tab" aria-selected="true" aria-controls="candy-panel" type="button"><i data-icon="candy"></i>糖果测试</button>
+          <button id="tab-fingerprint" class="tab" role="tab" aria-selected="false" aria-controls="fingerprint-panel" tabindex="-1" type="button"><i data-icon="fingerprint"></i>模型指纹</button>
+          <button id="tab-modeltrace" class="tab" role="tab" aria-selected="false" aria-controls="modeltrace-panel" tabindex="-1" type="button"><i data-icon="chart"></i>ModelTrace</button>
+          <button id="tab-pelican" class="tab" role="tab" aria-selected="false" aria-controls="pelican-panel" tabindex="-1" type="button"><i data-icon="play"></i>鹈鹕动画</button>
         </div>
         <div class="page-actions">
           <button id="clear-all" type="button" aria-label="清空全部测试记录" data-tip disabled><i data-icon="trash-2"></i></button>
@@ -151,11 +158,12 @@
     <div id="tip" class="tip" role="tooltip" hidden></div>
   </main>
   <footer class="page-footer">
-    <span>© 2026 <a href="https://github.com/haowang02/cpa-plugin-codex-candy-eval" target="_blank" rel="noopener noreferrer">CPA Codex Candy Eval</a></span>
+    <span><a href="https://github.com/Yorick-Ryu/cpa-plugin-codex-candy-eval" target="_blank" rel="noopener noreferrer">OMC Edition</a>&thinsp;·&thinsp;上游 © 2026 <a href="https://github.com/haowang02/cpa-plugin-codex-candy-eval" target="_blank" rel="noopener noreferrer">CPA Codex Candy Eval</a></span>
     <span>&thinsp;·&thinsp;<a href="https://github.com/haowang02/cpa-plugin-codex-candy-eval/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">MIT</a></span>
     <span>&thinsp;·&thinsp;版本 v<!--PLUGIN_VERSION--></span>
   </footer>
 
+  <script>/*THEME_SCRIPT*/</script>
   <script>/*MARKDOWN_SCRIPT*/</script>
   <script>/*CJK_FRIENDLY_SCRIPT*/</script>
   <script>/*TEXMATH_SCRIPT*/</script>

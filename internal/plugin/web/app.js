@@ -43,12 +43,6 @@ function panelValue(name) {
   } catch (_) { return null; }
 }
 
-// Panels resolve their "auto" theme to white or dark; CPAMC also has a light (paper) theme.
-function applyTheme() {
-  const theme = panelValue("cli-proxy-theme")?.state?.theme;
-  document.documentElement.dataset.theme = ["light", "white", "dark"].includes(theme) ? theme
-    : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "white";
-}
 function panelKey() {
   const k = panelValue("cli-proxy-auth")?.state?.managementKey;
   return typeof k === "string" ? k.trim() : "";
@@ -173,7 +167,19 @@ function renderPageActions() {
   $("refresh").setAttribute("aria-busy", refreshing);
 }
 
+function renderSummary() {
+  const visible = visibleCredentials();
+  const values = {
+    "summary-total": visible.length,
+    "summary-ready": visible.filter(availableCredential).length,
+    "summary-running": visible.filter(credentialBusy).length,
+    "summary-history": visible.filter((a) => [a.results, a.fingerprints, a.modeltraces, a.pelicans].some((records) => records?.length)).length,
+  };
+  for (const [id, value] of Object.entries(values)) $(id).textContent = value.toLocaleString("en-US");
+}
+
 function render() {
+  renderSummary();
   renderPageActions();
   setNotice("storage-error", storageError);
   renderCredentialFilters();
@@ -481,9 +487,6 @@ $("refresh").addEventListener("click", async () => {
   }
 });
 
-applyTheme();
-addEventListener("storage", applyTheme);
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
 
 // Masking and credential filters apply to every tab, whichever card changes them.
 setMasked(preference("masked", false));

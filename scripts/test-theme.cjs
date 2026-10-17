@@ -1,0 +1,30 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('internal/plugin/web/theme.js','utf8');
+function setup({crossOrigin = false, host = true} = {}) {
+  const values = new Map();
+  const root = {dataset:{}, toggleAttribute(name,on) { this[name]=on; }, style:{setProperty:(k,v)=>values.set(k,v),removeProperty:k=>values.delete(k)}};
+  const palette = {'--fg':'#f4f4f6','--bg':'#121214','--font-ui':'Custom Mono','--accent':'#6ee7a8'};
+  const hostRoot = {dataset:{themeMode:'dark'}, ownerDocument:{fonts:[],defaultView:{getComputedStyle:()=>({getPropertyValue:key=>palette[key]||''})}}};
+  const shellRoot = {dataset:{theme:'dark'},ownerDocument:{defaultView:{getComputedStyle:()=>({getPropertyValue:()=>''})}}};
+  const outer = {document:{documentElement:hostRoot}}; outer.parent=outer;
+  const shell = {document:{documentElement:shellRoot}, parent:host?outer:null}; if(!host) shell.parent=shell;
+  const win = {parent:shell}; if(crossOrigin) Object.defineProperty(win,'parent',{get(){throw new Error('cross-origin')}});
+  let sync;
+  const observed=[];
+  vm.runInNewContext(source,{window:win, document:{documentElement:root,fonts:{add(){}}},matchMedia:()=>({matches:false,addEventListener(){}}),MutationObserver:class{constructor(fn){sync=fn}observe(el){observed.push(el)}}});
+  return {root,values,palette,hostRoot,shellRoot,sync,observed};
+}
+const embedded=setup();
+assert.equal(embedded.root.dataset.theme,'dark');
+assert.equal(embedded.values.get('--accent'),'#6ee7a8');
+assert.equal(embedded.observed.length,2,'observe both the intermediate shell and outer OMC root');
+embedded.hostRoot.dataset.themeMode='light'; embedded.palette['--bg']='#f8f3e8'; embedded.palette['--accent']='#0f766e'; embedded.sync();
+assert.equal(embedded.root.dataset.theme,'light');
+assert.equal(embedded.values.get('--bg'),'#f8f3e8');
+assert.equal(embedded.values.get('--accent'),'#0f766e');
+delete embedded.palette['--accent']; embedded.sync(); assert(!embedded.values.has('--accent'),'removed host tokens fall back to CSS');
+const shell=setup({host:false}); assert.equal(shell.root.dataset.theme,'dark'); assert.equal(shell.values.size,0);
+const cross=setup({crossOrigin:true}); assert.equal(cross.root.dataset.theme,'light'); assert.equal(cross.values.size,0);
+console.log('Theme checks passed: nested OMC shell, custom palettes, live mode changes, removed tokens, cross-origin fallback.');
