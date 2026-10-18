@@ -275,7 +275,8 @@ export function createThemeConfig(resolved: Pick<ResolvedPalette, 'mode' | 'pale
       Popover: { ...noShadow, colorBgElevated: t.elevated },
       Dropdown: { ...noShadow, colorBgElevated: t.elevated },
       Select: { optionSelectedBg: t.selected, optionSelectedColor: t.fg, colorBgElevated: t.elevated },
-      Tooltip: { colorBgSpotlight: t.tooltipBg },
+      // Tooltip otherwise keeps Ant Design's white text on host-supplied light fills.
+      Tooltip: { colorBgSpotlight: t.elevated, colorTextLightSolid: t.fg },
       Tag: { borderRadiusSM: 4, defaultBg: t.bg },
       Progress: { remainingColor: t.border },
       Descriptions: { itemPaddingBottom: 10 },

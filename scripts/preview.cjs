@@ -164,7 +164,7 @@ function page() {
         read("react/app.css"),
     )
     .replace("/*REACT_CONFIG*/{}", () => JSON.stringify(config))
-    .replace("<!--PLUGIN_VERSION-->", "0.3.16-omc.2")
+    .replace("<!--PLUGIN_VERSION-->", "0.3.16-omc.3")
     .replace("<!--CANDY_PROMPT-->", () => prompt("candy.go"))
     .replace("<!--PELICAN_PROMPT-->", () => prompt("pelican.go"))
     .replace(
