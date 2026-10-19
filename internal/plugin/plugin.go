@@ -15,7 +15,7 @@ import (
 
 const (
 	pluginID       = "cpa-codex-candy-eval"
-	pluginVersion  = "0.3.16-omc.3"
+	pluginVersion  = "0.4.0-omc.1"
 	ABIVersion     = 1
 	schemaVersion  = 6
 	managementBase = "/v0/management/plugins/" + pluginID
@@ -63,15 +63,14 @@ var omcLicense string
 
 var uiHTML = func() []byte {
 	config, _ := json.Marshal(map[string]any{
-		"fingerprint": map[string]any{"modes": fingerprintModes, "default_concurrency": fingerprintDefaultConcurrency, "max_concurrency": fingerprintMaxConcurrency},
-		"modeltrace":  map[string]any{"requests": traceTarget, "default_concurrency": traceDefaultConcurrency, "max_concurrency": traceMaxConcurrency},
+		"detection": map[string]any{"requests": detectionTarget, "aliases": detectionAliases},
 	})
 	return []byte(strings.NewReplacer(
 		"/*APP_STYLES*/", temmlStyles+"\n"+uiThemes+"\n"+uiStyles,
 		"<!--PLUGIN_VERSION-->", pluginVersion,
 		"<!--CANDY_PROMPT-->", html.EscapeString(candyPrompt),
 		"<!--PELICAN_PROMPT-->", html.EscapeString(pelicanPrompt),
-		"<!--MODELTRACE_LICENSE-->", "<!-- ModelTrace\n"+modelTraceLicense+"-->",
+		"<!--DETECTOR_LICENSE-->", "<!-- LM Fingerpoint Detector\n"+detectorLicense+"-->",
 		"<!--OMC_LICENSE-->", "<!-- Oh My CPA components\n"+omcLicense+"-->",
 		"/*REACT_CONFIG*/{}", string(config),
 		"/*MARKDOWN_SCRIPT*/", markdownScript,
@@ -150,23 +149,19 @@ func HandleMethod(method string, request []byte) (response []byte) {
 				{"Method": http.MethodGet, "Path": managementBase + "/state", "Description": "View credential test results"},
 				{"Method": http.MethodPost, "Path": managementBase + "/run", "Description": "Run the candy test on credentials"},
 				{"Method": http.MethodDelete, "Path": managementBase + "/results", "Description": "Clear candy test results"},
-				{"Method": http.MethodPost, "Path": managementBase + "/fingerprint/run", "Description": "Collect and compare model fingerprints"},
-				{"Method": http.MethodPost, "Path": managementBase + "/fingerprint/cancel", "Description": "Stop fingerprint collection"},
-				{"Method": http.MethodGet, "Path": managementBase + "/fingerprint/record", "Description": "View a fingerprint record"},
-				{"Method": http.MethodDelete, "Path": managementBase + "/fingerprint/results", "Description": "Clear fingerprint history"},
-				{"Method": http.MethodPost, "Path": managementBase + "/modeltrace/run", "Description": "Run ModelTrace on credentials"},
-				{"Method": http.MethodPost, "Path": managementBase + "/modeltrace/cancel", "Description": "Stop ModelTrace collection"},
-				{"Method": http.MethodGet, "Path": managementBase + "/modeltrace/record", "Description": "View a ModelTrace record"},
-				{"Method": http.MethodDelete, "Path": managementBase + "/modeltrace/results", "Description": "Clear ModelTrace history"},
+				{"Method": http.MethodPost, "Path": managementBase + "/detection/run", "Description": "Run fingerprint detection on credentials"},
+				{"Method": http.MethodPost, "Path": managementBase + "/detection/cancel", "Description": "Stop fingerprint detection"},
+				{"Method": http.MethodGet, "Path": managementBase + "/detection/record", "Description": "View a fingerprint detection record"},
+				{"Method": http.MethodDelete, "Path": managementBase + "/detection/results", "Description": "Clear fingerprint detection history"},
 				{"Method": http.MethodPost, "Path": managementBase + "/pelican/run", "Description": "Run the pelican test on credentials"},
 				{"Method": http.MethodGet, "Path": managementBase + "/pelican/record", "Description": "View a pelican animation"},
 				{"Method": http.MethodDelete, "Path": managementBase + "/pelican/results", "Description": "Clear pelican history"},
 				{"Method": http.MethodDelete, "Path": managementBase + "/all/results", "Description": "Clear all test history"},
-				{"Method": http.MethodPost, "Path": managementBase + "/inspection", "Description": "Inspect credentials with the candy, fingerprint or ModelTrace test"},
+				{"Method": http.MethodPost, "Path": managementBase + "/inspection", "Description": "Inspect credentials with the candy test or fingerprint detection"},
 				{"Method": http.MethodGet, "Path": managementBase + "/inspection", "Description": "View the latest inspection of a test"},
 			},
 			"resources": []map[string]string{
-				{"Path": uiPath, "Menu": "Codex 降智测试", "Description": "通过糖果测试、指纹测试、ModelTrace 和鹈鹕测试检测 CPA 凭证"},
+				{"Path": uiPath, "Menu": "Codex 降智测试", "Description": "通过糖果题、指纹检测和画鹈鹕检测 CPA 凭证"},
 			},
 		})
 	case "management.handle":
@@ -203,24 +198,16 @@ func handleManagement(req managementRequest) managementResponse {
 		return stateResponse()
 	case req.Method == http.MethodPost && path == managementBase+"/run":
 		return candyRunResponse(req.Body)
-	case req.Method == http.MethodPost && path == managementBase+"/fingerprint/run":
-		return fingerprintRunResponse(req.Body)
-	case req.Method == http.MethodPost && path == managementBase+"/fingerprint/cancel":
-		return cancelCollectionResponse("fingerprint", req.Body)
-	case req.Method == http.MethodGet && path == managementBase+"/fingerprint/record":
-		return recordResponse("fingerprint", req.Query)
-	case req.Method == http.MethodDelete && path == managementBase+"/fingerprint/results":
-		return clearHistoryResponse("fingerprint")
 	case req.Method == http.MethodDelete && path == managementBase+"/results":
 		return clearHistoryResponse("candy")
-	case req.Method == http.MethodPost && path == managementBase+"/modeltrace/run":
-		return traceRunResponse(req.Body)
-	case req.Method == http.MethodPost && path == managementBase+"/modeltrace/cancel":
-		return cancelCollectionResponse("modeltrace", req.Body)
-	case req.Method == http.MethodGet && path == managementBase+"/modeltrace/record":
-		return recordResponse("modeltrace", req.Query)
-	case req.Method == http.MethodDelete && path == managementBase+"/modeltrace/results":
-		return clearHistoryResponse("modeltrace")
+	case req.Method == http.MethodPost && path == managementBase+"/detection/run":
+		return detectionRunResponse(req.Body)
+	case req.Method == http.MethodPost && path == managementBase+"/detection/cancel":
+		return detectionCancelResponse(req.Body)
+	case req.Method == http.MethodGet && path == managementBase+"/detection/record":
+		return recordResponse("detection", req.Query)
+	case req.Method == http.MethodDelete && path == managementBase+"/detection/results":
+		return clearHistoryResponse("detection")
 	case req.Method == http.MethodPost && path == managementBase+"/pelican/run":
 		return pelicanRunResponse(req.Body)
 	case req.Method == http.MethodGet && path == managementBase+"/pelican/record":
@@ -258,10 +245,8 @@ func stateResponse() managementResponse {
 			view.Results = []candyResult{}
 		}
 		view.Running = candyRunning[auth.ID]
-		view.FingerprintRunning = fingerprintRunning[auth.ID]
-		view.Fingerprints = summaries(fingerprintResults[auth.ID])
-		view.ModelTraceRunning = traceRunning[auth.ID]
-		view.ModelTraces = summaries(traceResults[auth.ID])
+		view.DetectionRunning = detectionRunning[auth.ID]
+		view.Detections = summaries(detectionResults[auth.ID])
 		view.PelicanRunning = pelicanRunning[auth.ID]
 		view.Pelicans = summaries(pelicanResults[auth.ID])
 		views = append(views, view)
@@ -280,16 +265,20 @@ func summaries[T interface{ summary() T }](records []T) []T {
 func Quiesce() {
 	mu.Lock()
 	quiescing = true
-	for _, p := range fingerprintRunning {
-		p.Phase = "cancelling"
-		p.cancel()
-	}
-	for _, p := range traceRunning {
+	for _, p := range detectionRunning {
 		p.Phase = "cancelling"
 		p.cancel()
 	}
 	mu.Unlock()
 	tasks.Wait()
+}
+
+func mustDecode[T any](data []byte) T {
+	var value T
+	if err := json.Unmarshal(data, &value); err != nil {
+		panic(err)
+	}
+	return value
 }
 
 func truncate(text string, limit int) string {

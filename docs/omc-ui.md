@@ -1,7 +1,9 @@
 # OMC component UI
 
-The evaluation runners, plugin ID, management routes, state schema and stored
-history remain the upstream CPA contracts. `web/src/main.tsx` owns the React
+The evaluation runners, plugin ID, management routes and stored history follow
+upstream v0.4.0. The new fingerprint detection replaces the old fingerprint and
+ModelTrace tests; back up state before upgrading because upstream drops those
+retired histories. Candy and pelican histories remain compatible. `web/src/main.tsx` owns the React
 interface; the build reuses the original credential identities and model-catalog
 logic through `web/build.mjs`.
 
@@ -32,7 +34,7 @@ go test -race ./...
 ```
 
 The component suite loads the shipped bundle in a DOM environment and talks to
-an isolated synthetic CPA server. It covers the four tests, polling, selection,
+an isolated synthetic CPA server. It covers the three tests, polling, selection,
 details, cancellation, sandboxed animation and history confirmation. Go tests
 check the runners and persistence. Prompt and version embedding checks remain;
 static checks for old DOM tab IDs were replaced by component interaction checks.

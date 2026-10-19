@@ -153,24 +153,24 @@ func TestCandyPreflightPinnedProvidersAndNone(t *testing.T) {
 	}
 }
 
-func TestFingerprintPreflightSkipsWithoutRequests(t *testing.T) {
+func TestDetectionPreflightSkipsWithoutRequests(t *testing.T) {
 	setupTest(t)
 	hostCall = func(method string, _ any) (json.RawMessage, error) {
 		if method != "host.auth.list" {
-			t.Fatalf("skipped fingerprint executed: %s", method)
+			t.Fatalf("skipped detection executed: %s", method)
 		}
 		return json.RawMessage(`{"files":[{"id":"a","provider":"claude"}]}`), nil
 	}
-	response := fingerprintRunResponse([]byte(`{"all":true,"model":"gpt-5.6-sol","mode":"strict","model_catalog":{"a":["claude-model"]}}`))
+	response := detectionRunResponse([]byte(`{"all":true,"model":"gpt-5.6-sol","model_catalog":{"a":["claude-model"]}}`))
 	if string(response.Body) != `{"started":0,"skipped":1}` {
 		t.Fatalf("response = %s", response.Body)
 	}
-	if r := fingerprintResults["a"][0]; r.Status != "skipped" || r.Total != 0 || r.Done != 0 || r.Attribution.Status != "" {
+	if r := detectionResults["a"][0]; r.Status != "skipped" || r.Attribution != nil || r.Samples != nil {
 		t.Fatalf("result = %+v", r)
 	}
-	fingerprintResults = map[string][]fingerprintResult{}
+	detectionResults = map[string][]detectionResult{}
 	loadState()
-	if fingerprintResults["a"][0].Status != "skipped" {
+	if detectionResults["a"][0].Status != "skipped" {
 		t.Fatal("skip history not persisted")
 	}
 }

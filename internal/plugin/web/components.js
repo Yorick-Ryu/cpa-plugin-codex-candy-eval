@@ -136,13 +136,13 @@ function credentialRow({ type, credential: a, selected, open, selectable, result
 function resultOutcome({ tone = "", symbol, titleHTML, detailHTML = "", progressHTML = "" }) {
   return `<div class="outcome ${tone}"><span class="outcome-icon">${icon(symbol, progressHTML ? "spin" : "")}</span><div class="outcome-copy"><div class="outcome-title">${titleHTML}</div>${detailHTML ? `<div class="outcome-detail">${detailHTML}</div>` : ""}${progressHTML}</div></div>`;
 }
-function collectionOutcome(p, total, showModel = false) {
+function collectionOutcome(p, total) {
   const stopping = p.phase === "cancelling";
-  const phase = stopping ? "正在停止" : p.phase === "comparing" ? "正在分析指纹" : "正在采集";
+  const phase = stopping ? "正在停止" : "正在采集";
   return resultOutcome({
     symbol: "loader-circle",
     titleHTML: `${phase} <span class="meta mono">${p.done}/${total}</span>`,
-    detailHTML: stopping ? "已停止发送新请求，进行中的请求返回后保存结果" : showModel ? `<span class="mono">${esc(p.model)}</span>` : "",
+    detailHTML: stopping ? "已停止发送新请求，进行中的请求返回后保存结果" : "",
     progressHTML: `<progress class="collection-progress" value="${p.done}" max="${total}" aria-label="采集进度"></progress>`,
   });
 }

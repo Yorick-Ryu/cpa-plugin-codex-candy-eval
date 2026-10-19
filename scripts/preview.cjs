@@ -19,66 +19,17 @@ const result = (ok, error) => ({
   output_tokens: 664,
   reasoning_tokens: 368,
 });
-const fp = {
-  ...result(true),
-  id: "fp-demo",
-  status: "completed",
-  mode: "quick",
-  total: 60,
-  done: 60,
-  valid: 60,
-  errors: 0,
+const detection = {
+  ...result(true), id: "detection-demo", status: "completed", concurrency: 3,
   attribution: {
-    status: "consistent",
-    nearest: models[0],
-    alpha: 0.05,
-    self_jsd: 0.014,
-    reference_p_value: 0.5,
-    comparisons: [
-      {
-        model: models[0],
-        mean_jsd: 0.012,
-        p_value: 0.64,
-        verdict: "match",
-        cells: [
-          {
-            cell: "random-number-1-100:zh",
-            jsd: 0.008,
-            valid_a: 15,
-            valid_b: 100,
-          },
-        ],
-      },
-    ],
-    warnings: [],
-  },
-};
-const mt = {
-  ...result(true),
-  id: "mt-demo",
-  status: "completed",
-  attribution: {
-    prediction: models[0],
-    probability: 0.91,
-    family_prediction_name: "GPT",
-    family_probability: 0.98,
-    used_outputs: 3,
-    family_probabilities: [{ display_name: "GPT", probability: 0.98 }],
+    decision: "model", prediction: "gpt-6-astra", prediction_name: "gpt-6-astra / 6.1-sol",
+    probability: 0.91, family_prediction_name: "GPT", used_outputs: 3,
     results: [
-      { model: models[0], display_name: models[0], probability: 0.91 },
-      { model: models[1], display_name: models[1], probability: 0.07 },
+      {model: "gpt-6-astra", display_name: "gpt-6-astra / 6.1-sol", probability: 0.91},
+      {model: "gpt-5.6-sol", display_name: "gpt-5.6-sol", probability: 0.09},
     ],
   },
-  samples: [
-    {
-      prompt: "生成一组随机长整数。",
-      text: "1234567890",
-      parsed_numbers: 1,
-      expected_count: 1,
-      attempts: 1,
-      accepted: true,
-    },
-  ],
+  samples: [{instructions: "Generate independent samples.", prompt: "生成一组 1–355 的随机整数。", text: "123 42 355", parsed_numbers: 300, expected_count: 300, attempts: 1, accepted: true}],
 };
 const pl = {
   ...result(true),
@@ -107,22 +58,10 @@ const auths = [
   priority: 10,
   disabled: i === 3,
   results,
-  fingerprints: i === 0 ? [fp] : [],
-  modeltraces: i === 0 ? [mt] : [],
+  detections: i === 0 ? [detection] : [],
   pelicans: i === 0 ? [{ ...pl, html: undefined }] : [],
 }));
-const config = {
-  fingerprint: {
-    modes: [
-      { id: "quick", name: "快速", cells: 4, samples_per_cell: 15 },
-      { id: "standard", name: "标准", cells: 8, samples_per_cell: 25 },
-      { id: "strict", name: "严格", cells: 16, samples_per_cell: 25 },
-    ],
-    default_concurrency: 2,
-    max_concurrency: 6,
-  },
-  modeltrace: { requests: 3, default_concurrency: 3, max_concurrency: 3 },
-};
+const config = {detection: {requests: 3, aliases: {"gpt-6.1-sol": "gpt-6-astra", "deepseek-flash": "deepseek-v4.1-flash-1017"}}};
 function page() {
   let html = read("ui.html");
   const replacements = {
@@ -164,7 +103,7 @@ function page() {
         read("react/app.css"),
     )
     .replace("/*REACT_CONFIG*/{}", () => JSON.stringify(config))
-    .replace("<!--PLUGIN_VERSION-->", "0.3.16-omc.3")
+    .replace("<!--PLUGIN_VERSION-->", "0.4.0-omc.1")
     .replace("<!--CANDY_PROMPT-->", () => prompt("candy.go"))
     .replace("<!--PELICAN_PROMPT-->", () => prompt("pelican.go"))
     .replace(
@@ -228,30 +167,22 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname.endsWith("/record"))
     return send(
       res,
-      url.pathname.includes("/fingerprint/")
-        ? fp
-        : url.pathname.includes("/modeltrace/")
-          ? mt
-          : pl,
+      url.pathname.includes("/detection/") ? detection : pl,
     );
   if (url.pathname.startsWith(base) && url.pathname.endsWith("/run")) {
-    const test = url.pathname.includes("/fingerprint/")
-      ? "fingerprint"
-      : url.pathname.includes("/modeltrace/")
-        ? "modeltrace"
+    const test = url.pathname.includes("/detection/")
+      ? "detection"
         : url.pathname.includes("/pelican/")
           ? "pelican"
           : "candy";
     const fields = {
       candy: "results",
-      fingerprint: "fingerprints",
-      modeltrace: "modeltraces",
+      detection: "detections",
       pelican: "pelicans",
     };
     const running = {
       candy: "running",
-      fingerprint: "fingerprint_running",
-      modeltrace: "modeltrace_running",
+      detection: "detection_running",
       pelican: "pelican_running",
     };
     const targets = auths.filter(
@@ -263,16 +194,17 @@ const server = http.createServer(async (req, res) => {
           ? true
           : {
               done: 0,
-              total: test === "fingerprint" ? 60 : 3,
+              total: 3,
               model: body.model,
             };
+      const task = a[running[test]];
       setTimeout(() => {
+        if (a[running[test]] !== task) return;
         delete a[running[test]];
         a[fields[test]].push({
           ...{
             candy: result(true),
-            fingerprint: fp,
-            modeltrace: mt,
+            detection,
             pelican: { ...pl, html: undefined },
           }[test],
           model: body.model,
@@ -289,8 +221,7 @@ const server = http.createServer(async (req, res) => {
   }
   if (url.pathname.startsWith(base) && url.pathname.endsWith("/cancel")) {
     for (const a of auths) {
-      delete a.fingerprint_running;
-      delete a.modeltrace_running;
+      delete a.detection_running;
     }
     return send(res, { ok: true });
   }
@@ -301,12 +232,10 @@ const server = http.createServer(async (req, res) => {
   ) {
     for (const a of auths) {
       const fields = url.pathname.includes("/all/")
-        ? ["results", "fingerprints", "modeltraces", "pelicans"]
+        ? ["results", "detections", "pelicans"]
         : [
-            url.pathname.includes("/fingerprint/")
-              ? "fingerprints"
-              : url.pathname.includes("/modeltrace/")
-                ? "modeltraces"
+            url.pathname.includes("/detection/")
+              ? "detections"
                 : url.pathname.includes("/pelican/")
                   ? "pelicans"
                   : "results",
@@ -317,7 +246,7 @@ const server = http.createServer(async (req, res) => {
   }
   send(res, { error: "Local fixture refuses this operation" }, 403);
 });
-module.exports = { server, page, auths, models };
+module.exports = { server, page, auths, models, detection };
 if (require.main === module)
   server.listen(Number(process.env.PREVIEW_PORT || 4178), "127.0.0.1", () =>
     console.log(

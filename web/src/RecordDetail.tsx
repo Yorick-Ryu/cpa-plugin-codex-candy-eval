@@ -1,13 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   Alert,
   Collapse,
   Descriptions,
   Progress,
-  Select,
-  Statistic,
   Table,
-  Tag,
 } from "antd";
 import { StatusLabel } from "./omc/common/StatusLabel";
 import { fmtTime, percent, verdict, type RecordData, type Test } from "./model";
@@ -59,13 +56,8 @@ export function RecordDetail({
   record: RecordData;
   test: Test;
 }) {
-  const [baseline, setBaseline] = useState("");
   const a = r.attribution || {};
-  const comparison =
-    a.comparisons?.find((c: any) => c.model === (baseline || a.nearest)) ||
-    a.comparisons?.[0];
   const state = verdict(r, test);
-  const n = (v: any) => (typeof v === "number" ? v.toFixed(4) : "—");
   return (
     <div className="record-detail">
       <RecordMeta record={r} />
@@ -80,118 +72,16 @@ export function RecordDetail({
           srcDoc={r.html}
         />
       )}
-      {test === "fingerprint" && (
+      {test === "detection" && (
         <>
-          <div className="detail-stats">
-            <Statistic
-              title="采集进度"
-              value={`${r.done ?? 0} / ${r.total ?? 0}`}
-            />
-            <Statistic title="有效回答" value={r.valid ?? 0} />
-            <Statistic title="请求失败" value={r.errors ?? 0} />
-            <Statistic
-              title="耗时"
-              value={((r.duration_ms ?? 0) / 1000).toFixed(1)}
-              suffix="s"
-            />
-          </div>
-          {a.message && <p className="secondary">{a.message}</p>}
-          {r.status !== "completed" && (
-            <p className="secondary">结果基于已采集的部分样本，仅供参考。</p>
-          )}
-          <h3>基准比对</h3>
-          <Table
-            size="small"
-            pagination={false}
-            rowKey="model"
-            scroll={{ x: 600 }}
-            dataSource={a.comparisons || []}
-            columns={[
-              {
-                title: "基准模型",
-                dataIndex: "model",
-                render: (v: string) => (
-                  <span>
-                    {v}
-                    {v === r.model && <Tag>所选</Tag>}
-                    {v === a.nearest && <Tag>最近</Tag>}
-                  </span>
-                ),
-              },
-              { title: "距离 JSD ↓", dataIndex: "mean_jsd", render: n },
-              { title: "p 值", dataIndex: "p_value", render: n },
-              {
-                title: "有效探针",
-                dataIndex: "cells",
-                render: (v: any[]) => v?.length ?? 0,
-              },
-              {
-                title: "判断",
-                dataIndex: "verdict",
-                render: (v: string) =>
-                  ({
-                    match: "相似",
-                    uncertain: "不确定",
-                    mismatch: "不同",
-                    insufficient: "样本不足",
-                  })[v] || v,
-              },
-            ]}
-          />
-          <p className="secondary">
-            距离越小，回答分布越接近。p 值低于 {n(a.alpha)}{" "}
-            时视为差异显著；归因同时考虑距离与统计检验。
-          </p>
-          <h3>结果稳定性</h3>
-          <Descriptions
-            size="small"
-            items={[
-              { key: "self", label: "自一致性 JSD", children: n(a.self_jsd) },
-              {
-                key: "ref",
-                label: "基准差异 p 值",
-                children: n(a.reference_p_value),
-              },
-            ]}
-          />
-          {(a.warnings || []).map((w: string) => (
-            <Alert key={w} type="warning" title={w} showIcon />
-          ))}
-          <h3>逐项比对</h3>
-          <Select
-            aria-label="对比基准模型"
-            className="baseline-select"
-            value={comparison?.model}
-            options={(a.comparisons || []).map((c: any) => ({
-              value: c.model,
-              label: c.model,
-            }))}
-            onChange={setBaseline}
-          />
-          <Table
-            size="small"
-            pagination={false}
-            rowKey="cell"
-            scroll={{ x: 480 }}
-            dataSource={comparison?.cells || []}
-            columns={[
-              { title: "探针", dataIndex: "cell" },
-              { title: "距离 JSD", dataIndex: "jsd", render: n },
-              { title: "本次有效回答", dataIndex: "valid_a" },
-              { title: "基准有效回答", dataIndex: "valid_b" },
-            ]}
-          />
-        </>
-      )}
-      {test === "modeltrace" && (
-        <>
-          {r.attribution && (
+          {r.attribution && a.decision !== "not_model" && (
             <>
+              <p className="secondary">{state.tone === "success" ? "与测试模型一致" : "与测试模型不一致"}</p>
               <Descriptions
                 size="small"
                 bordered
                 items={[
-                  { key: "p", label: "最接近的模型", children: a.prediction },
+                  { key: "p", label: "最接近的模型", children: a.prediction_name || a.prediction },
                   {
                     key: "prob",
                     label: "归因概率",
@@ -203,24 +93,13 @@ export function RecordDetail({
                     children: a.family_prediction_name,
                   },
                   {
-                    key: "fprob",
-                    label: "家族概率",
-                    children: percent(a.family_probability),
-                  },
-                  {
                     key: "used",
                     label: "有效回答",
-                    children: `${a.used_outputs ?? 0} / ${window.CANDY_CONFIG.modeltrace.requests}`,
+                    children: `${a.used_outputs ?? 0} / ${window.CANDY_CONFIG.detection.requests}`,
                   },
                 ]}
               />
-              <div className="family-tags">
-                {(a.family_probabilities || []).map((f: any) => (
-                  <Tag key={f.display_name}>
-                    {f.display_name} {percent(f.probability)}
-                  </Tag>
-                ))}
-              </div>
+              {a.probability == null && <p className="secondary">有效回答不足三条，仅给出排名，不计算归因概率。</p>}
               <h3>候选模型排行</h3>
               <Table
                 size="small"
@@ -235,7 +114,7 @@ export function RecordDetail({
                   {
                     title: "归因概率",
                     dataIndex: "probability",
-                    render: (v: number) => (
+                    render: (v: number | null) => v == null ? "—" : (
                       <Progress
                         percent={Math.max(0, Math.min(100, v * 100))}
                         format={() => percent(v)}
@@ -246,6 +125,8 @@ export function RecordDetail({
               />
             </>
           )}
+          {a.decision === "not_model" && <Alert type="warning" showIcon title="相邻数字的变化方式与参考库中的语言模型不同，因此未生成排名。" />}
+          {r.status === "partial" && <p className="secondary">部分结果</p>}
           <h3>挑战记录</h3>
           <Collapse
             items={(r.samples || []).map((s: any, i: number) => ({
@@ -254,7 +135,8 @@ export function RecordDetail({
               children: (
                 <>
                   <p className="secondary">请求次数 {s.attempts || 1}</p>
-                  <pre>{s.prompt}</pre>
+                  {s.instructions && <><h3>开发者指令</h3><pre>{s.instructions}</pre></>}
+                  <h3>提示词</h3><pre>{s.prompt}</pre>
                   {s.error && <Alert type="error" title={s.error} />}
                   <pre>{s.text}</pre>
                 </>

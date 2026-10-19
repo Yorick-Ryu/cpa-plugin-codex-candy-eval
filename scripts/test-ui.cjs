@@ -43,10 +43,9 @@ const context = vm.createContext({
     setItem(key, value) { if (storageBlocked) throw new Error('Storage unavailable'); storageWrites++; browserStorage.set(key, value); },
   },
 });
-let source = ['vendor/markdown-it.min.js', 'vendor/markdown-it-cjk-friendly.min.js', 'vendor/texmath.js', 'vendor/temml.min.js', 'credentials.js', 'catalog.js', 'components.js', 'candy.js', 'fingerprint.js', 'modeltrace.js', 'pelican.js', 'app.js']
+let source = ['vendor/markdown-it.min.js', 'vendor/markdown-it-cjk-friendly.min.js', 'vendor/texmath.js', 'vendor/temml.min.js', 'credentials.js', 'catalog.js', 'components.js', 'candy.js', 'detection.js', 'pelican.js', 'app.js']
   .map(file => webFile(file).split('// Events and initialization.')[0]).join('\n');
-source = source.replace('/*FINGERPRINT_CONFIG*/{}', JSON.stringify({ modes: [{ id: 'quick', name: '快速', cells: 4, samples_per_cell: 15 }], default_concurrency: 2, max_concurrency: 6 }));
-source = source.replace('/*MODELTRACE_CONFIG*/{}', JSON.stringify({requests:3,default_concurrency:3,max_concurrency:3}));
+source = source.replace('/*DETECTION_CONFIG*/{}', JSON.stringify({requests:3,aliases:{'gpt-6.1-sol':'gpt-6-astra'}}));
 vm.runInContext(source, context);
 const run = code => vm.runInContext(code, context);
 const plain = value => JSON.parse(JSON.stringify(value));
@@ -123,12 +122,11 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
 
   assert.equal(run(`HIDDEN_MODEL('vendor/IMAGE-preview')`), true);
   assert.equal(run(`HIDDEN_MODEL('claude-sonnet')`), false);
-  run(`initializeCandy(); initializeFingerprint(); catalogCache.models = {time:Date.now(),ids:['prefix/model','gpt-5.6-sol','claude-sonnet','gpt-6.1-sol']}; fillModels()`);
+  run(`initializeCandy(); catalogCache.models = {time:Date.now(),ids:['prefix/model','gpt-5.6-sol','claude-sonnet','gpt-6.1-sol']}; fillModels()`);
   assert.equal(element('model').value, 'gpt-6.1-sol');
   assert.equal(element('effort').value, 'low');
   assert.equal(element('model').innerHTML, '<option value="gpt-6.1-sol">gpt-6.1-sol</option><option value="gpt-5.6-sol">gpt-5.6-sol</option><option value="claude-sonnet">claude-sonnet</option><option value="prefix/model">prefix/model</option>');
-  assert.equal(element('fp-model').innerHTML, element('model').innerHTML);
-  assert.equal(element('mt-model').innerHTML, element('model').innerHTML);
+  assert.equal(element('dt-model').innerHTML, element('model').innerHTML);
   const sortedModels = ['gpt-6.1-astra','gpt-6.1-sol','gpt-6.1-terra','gpt-6.1-luna','gpt-6-astra','gpt-6-sol','gpt-6-terra','gpt-6-luna','gpt-5.6-sol','codex-auto-review(high)','codex-auto-review','claude-sonnet-4.6','claude-opus-4.6','claude-opus-4.5','gemini-pro','qwen'];
   assert.deepEqual(plain(run(`${JSON.stringify([...sortedModels].reverse())}.sort(compareModels)`)), sortedModels);
   assert.deepEqual(plain(run(`['gpt-6.9-sol','gpt-6.10-sol','gpt-7-sol'].sort(compareModels)`)), ['gpt-7-sol','gpt-6.10-sol','gpt-6.9-sol']);
@@ -139,29 +137,29 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
   assert.equal(element('effort').value, 'high');
   run(`savePreference('effort', 7); initializeCandy()`);
   assert.equal(element('effort').value, 'low', 'saved values of the wrong type fall back');
-  assert.equal(run(`availableCredential({modeltrace_running:{}})`), false);
-  assert.equal(run(`mtPercent(0.12345)`), '12.3%');
-  assert.equal(run(`mtConcurrency()`), 3);
-  element('mt-concurrency').value = '2';
-  assert.equal(run(`mtConcurrency()`), 2);
-  element('mt-concurrency').value = '10';
-  assert.equal(run(`mtConcurrency()`), 3);
-  assert(run(`mtOutcome({status:'partial',attribution:{prediction:'<script>',family_prediction_name:'GPT',used_outputs:2}})`).includes('&lt;script&gt;'));
-  assert(run(`mtOutcome({status:'cancelled'})`).includes('测试已停止'));
-  const failedOutcome = run(`mtOutcome({status:'failed',error:'<error>'})`);
+  assert.equal(run(`availableCredential({detection_running:{}})`), false);
+  assert.equal(run(`dtPercent(0.12345)`), '12.3%');
+  assert.equal(run(`dtConcurrency()`), 3);
+  element('dt-concurrency').value = '2';
+  assert.equal(run(`dtConcurrency()`), 2);
+  element('dt-concurrency').value = '10';
+  assert.equal(run(`dtConcurrency()`), 3);
+  assert(run(`dtOutcome({status:'partial',attribution:{prediction:'gpt-test',prediction_name:'<script>',family_prediction_name:'GPT',used_outputs:2}})`).includes('&lt;script&gt;'));
+  assert(run(`dtOutcome({status:'cancelled'})`).includes('测试已停止'));
+  const failedOutcome = run(`dtOutcome({status:'failed',error:'<error>'})`);
   assert(failedOutcome.includes('测试失败'));
   assert(!failedOutcome.includes('&lt;error&gt;'), 'raw failures belong in the detail dialog, not the result table');
-  assert(run(`mtOutcome({status:'completed',attribution:{prediction:'gpt-test',family_prediction_name:'GPT',used_outputs:3,probability:0.834}})`).includes('<span>gpt-test</span><span class="mt-probability mono">83.4%</span>'));
-  assert.equal(run(`mtComparison({status:'completed',model:'provider/GPT-TEST',attribution:{prediction:'gpt-test'}}).tone`), 'ok');
-  assert.equal(run(`mtComparison({status:'completed',model:'gpt-test',attribution:{prediction:'other-model'}}).tone`), 'warn');
-  assert.equal(run(`mtComparison({status:'cancelled',model:'gpt-test',attribution:{prediction:'gpt-test'}}).tone`), 'neutral');
-  assert(run(`mtOutcome({status:'partial',model:'gpt-test',attribution:{prediction:'other-model'}})`).includes('与测试模型不一致 · 部分结果'));
-  for (const [status, label] of [['cancelled','采集已停止'], ['failed','采集失败'], ['skipped','已跳过'], ['completed','与所选模型一致']]) {
-    assert(run(`fpOutcome({status:${JSON.stringify(status)},attribution:{status:'consistent'}})`).includes(label));
-  }
-  run(`showFingerprintDetail({id:'skipped',status:'skipped',model:'test',error:'不支持的模型'})`);
-  assert.equal(element('fp-detail-body').innerHTML.match(/不支持的模型/g).length, 1);
-  assert(!element('fp-detail-body').innerHTML.includes('基准比对'));
+  assert(run(`dtOutcome({status:'completed',attribution:{prediction:'gpt-test',prediction_name:'gpt-test',family_prediction_name:'GPT',used_outputs:3,probability:0.834}})`).includes('<span>gpt-test</span><span class="dt-probability mono">83.4%</span>'));
+  assert.equal(run(`dtComparison({status:'completed',model:'provider/GPT-TEST',attribution:{prediction:'gpt-test'}}).tone`), 'ok');
+  assert.equal(run(`dtComparison({status:'completed',model:'gpt-test',attribution:{prediction:'other-model'}}).tone`), 'warn');
+  assert.equal(run(`dtComparison({status:'cancelled',model:'gpt-test',attribution:{prediction:'gpt-test'}}).tone`), 'neutral');
+  assert(run(`dtOutcome({status:'partial',model:'gpt-test',attribution:{prediction:'other-model'}})`).includes('与测试模型不一致 · 部分结果'));
+  assert.equal(run(`dtComparison({status:'completed',model:'openai/gpt-6.1-sol',attribution:{prediction:'gpt-6-astra'}}).tone`), 'ok', 'gpt-6.1-sol shares the gpt-6-astra candidate');
+  assert.equal(run(`dtComparison({status:'completed',model:'constructor',attribution:{prediction:'other-model'}}).tone`), 'warn');
+  const notModel = run(`dtOutcome({status:'completed',model:'gpt-test',attribution:{decision:'not_model',prediction:'',probability:null,used_outputs:3}})`);
+  assert(notModel.includes('不像语言模型回答') && notModel.includes('outcome warn') && !notModel.includes('dt-probability'));
+  const partial = run(`dtResultHTML({status:'partial',model:'gpt-6.1-sol',attribution:{decision:'partial',prediction:'gpt-6-astra',prediction_name:'gpt-6-astra/6.1-sol',probability:null,family_prediction_name:'GPT',used_outputs:2,results:[{model:'gpt-6-astra',display_name:'gpt-6-astra/6.1-sol',probability:null,score:2.1}]}})`);
+  assert(partial.includes('dt-summary ok') && partial.includes('gpt-6-astra/6.1-sol') && partial.includes('不计算归因概率') && partial.includes('>—<') && !partial.includes('NaN'));
   run(`refreshing = true; renderPageActions()`);
   assert.equal(element('refresh').disabled, true);
   assert.equal(element('refresh')['aria-busy'], true);
@@ -171,22 +169,22 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
   run(`pending = false; renderPageActions()`);
   assert.equal(element('refresh').disabled, false);
   run(`var detailPaths = []; api = async (path) => { detailPaths.push(path); return {id:'failed',time:'2026-09-28T00:00:00Z',status:'failed',model:'<model>',error:'<request failed>',duration_ms:0}; }`);
-  await run(`openResultDetail('mt', 'modeltrace', 'cred/1', 'failed', showModelTraceDetail)`);
-  assert.equal(element('mt-detail').open, true);
-  assert.deepEqual(plain(run(`detailPaths`)), [run(`BASE`) + '/modeltrace/record?auth_id=cred%2F1&id=failed'], 'details load on demand');
-  assert.equal(element('mt-detail-body').innerHTML.match(/&lt;request failed&gt;/g).length, 1);
-  assert(!element('mt-detail-body').innerHTML.includes('<model>'));
-  const progress = run(`renderModelTraceRow({id:'progress',name:'Test',source:'auth_files',provider:'codex',modeltrace_running:{model:'gpt-test',phase:'collecting',done:2},modeltraces:[]})`);
+  await run(`openResultDetail('dt', 'detection', 'cred/1', 'failed', showDetectionDetail)`);
+  assert.equal(element('dt-detail').open, true);
+  assert.deepEqual(plain(run(`detailPaths`)), [run(`BASE`) + '/detection/record?auth_id=cred%2F1&id=failed'], 'details load on demand');
+  assert.equal(element('dt-detail-body').innerHTML.match(/&lt;request failed&gt;/g).length, 1);
+  assert(!element('dt-detail-body').innerHTML.includes('<model>'));
+  const progress = run(`renderDetectionRow({id:'progress',name:'Test',source:'auth_files',provider:'codex',detection_running:{model:'gpt-test',phase:'collecting',done:2},detections:[]})`);
   assert(progress.includes('2/3'));
   assert(!progress.includes('份回答'));
-  const historyRecord = {id:'record',time:'2026-09-28T00:00:00Z',model:'<model>',effort:'low',mode:'quick',status:'completed',ok:true,answer:'21',duration_ms:1200,input_tokens:1234,output_tokens:567,reasoning_tokens:89,attribution:{status:'consistent',prediction:'<model>',probability:0.9}};
+  const historyRecord = {id:'record',time:'2026-09-28T00:00:00Z',model:'<model>',effort:'low',status:'completed',ok:true,answer:'21',duration_ms:1200,input_tokens:1234,output_tokens:567,reasoning_tokens:89,attribution:{prediction:'<model>',prediction_name:'<model>',probability:0.9}};
   const answer = run(`answerHTML({answer:String.raw\`**答案：**21 <img src=x onerror=alert(1)> [a](javascript:alert(1)) ![b](https://example.com/b.png) \\(r\\le8\\) \\(\\href{javascript:alert(1)}{x}\\)\`})`);
   assert(answer.includes('<strong>答案：</strong>21 &lt;img') && answer.includes('<math') && !/<(img|a)\b|\shref=/.test(answer), 'answers render Markdown and TeX, never HTML, links or images');
   const frame = run(`pelicanFrame('<script>top.location = "x"</script>')`);
   assert(frame.startsWith('<iframe sandbox="allow-scripts" srcdoc="&lt;script&gt;top.location = &quot;x&quot;'), 'model pages run in an opaque origin, inside their srcdoc');
-  const historyCredential = {id:'history',name:'Test',source:'auth_files',provider:'codex',results:[historyRecord,historyRecord],fingerprints:[historyRecord,historyRecord],modeltraces:[historyRecord,historyRecord]};
-  run(`candyExpanded.add('history'); fpExpanded.add('history'); mtExpanded.add('history')`);
-  for (const renderer of ['renderCandyRow','renderFingerprintRow','renderModelTraceRow']) {
+  const historyCredential = {id:'history',name:'Test',source:'auth_files',provider:'codex',results:[historyRecord,historyRecord],detections:[historyRecord,historyRecord]};
+  run(`candyExpanded.add('history'); dtExpanded.add('history')`);
+  for (const renderer of ['renderCandyRow','renderDetectionRow']) {
     const markup = run(`${renderer}(${JSON.stringify(historyCredential)})`);
     assert.equal((markup.match(/class="history-title"/g) || []).length, 1);
     assert.equal((markup.match(/<article class="history-card">/g) || []).length, 2);
@@ -199,7 +197,7 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
       assert(head[1].includes(run(`ICONS['square-arrow-right-exit']`)));
     }
     assert(!markup.includes('<model>'));
-    const empty = run(`${renderer}(${JSON.stringify({...historyCredential,results:[],fingerprints:[],modeltraces:[]})})`);
+    const empty = run(`${renderer}(${JSON.stringify({...historyCredential,results:[],detections:[]})})`);
     assert(empty.includes('<div class="none">暂无记录</div>'));
   }
   const unknownCard = run(`historyCard({duration_ms:1200,input_tokens:null,output_tokens:null}, '')`);
@@ -211,7 +209,7 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
   assert(zeroCard.includes('输入 Token 0'));
   assert(zeroCard.includes('输出 Token 0'));
   assert(!zeroCard.includes('推理 Token'));
-  for (const [renderer, runningKey, type] of [['renderFingerprintRow','fingerprint_running','fp'],['renderModelTraceRow','modeltrace_running','mt']]) {
+  for (const [renderer, runningKey, type] of [['renderDetectionRow','detection_running','dt']]) {
     const markup = run(`${renderer}(${JSON.stringify({...historyCredential,[runningKey]:{phase:'cancelling',model:'test',done:2,total:3}})})`);
     assert(markup.includes('正在停止'));
     assert(markup.includes('已停止发送新请求，进行中的请求返回后保存结果'));
@@ -219,10 +217,10 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
   }
   const skippedLatest = run(`renderCandyRow(${JSON.stringify({...historyCredential,id:'skipped',results:[{...historyRecord,skipped:true}]})})`);
   assert(!skippedLatest.includes('输入 Token'));
-  run(`switchTab('modeltrace')`);
-  assert.equal(element('modeltrace-panel').hidden, false);
+  run(`switchTab('detection')`);
+  assert.equal(element('detection-panel').hidden, false);
   assert.equal(element('candy-panel').hidden, true);
-  assert.equal(element('fingerprint-panel').hidden, true);
+  assert.equal(element('pelican-panel').hidden, true);
   run(`switchTab('candy')`);
   run(`fillSelect('effort', DEFAULT_EFFORTS, 'none', DEFAULT_EFFORT)`);
   assert.equal(element('effort').value, 'none');
@@ -269,13 +267,13 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
   const enableSwitchInput = (a) => run(`enableSwitch(${JSON.stringify(a)})`).match(/<input[^>]*>/)[0];
   assert.match(enableSwitchInput({id:'on',source:'auth_files',provider:'codex'}), /checked(?! disabled)/);
   assert.doesNotMatch(enableSwitchInput({id:'off',source:'auth_files',provider:'codex',disabled:true}), /checked|disabled/, 'disabled files must be re-enabled');
-  assert.match(enableSwitchInput({id:'busy',source:'auth_files',provider:'codex',fingerprint_running:{}}), /disabled/);
+  assert.match(enableSwitchInput({id:'busy',source:'auth_files',provider:'codex',detection_running:{}}), /disabled/);
   assert.equal(run(`unavailableReason({status_message:'{"error":{"message":"The usage limit has been reached"}}'})`), 'The usage limit has been reached', 'upstream JSON errors show only their message');
   assert.doesNotMatch(enableSwitchInput({id:'claude:apikey:1',source:'ai_providers',provider:'claude'}), /disabled/, 'config API keys are switchable');
   assert.match(enableSwitchInput({id:'openai-compatibility:demo:1',source:'ai_providers',provider:'openai-compatible-demo'}), /disabled/);
-  for (const [renderer, rows, expanded] of [['renderCandyRow','rows','candyExpanded'], ['renderFingerprintRow','fp-rows','fpExpanded'], ['renderModelTraceRow','mt-rows','mtExpanded']]) {
-    assert(run(`${renderer}({...credentials[0], results:[], fingerprints:[], modeltraces:[]})`).includes('data-enable="free"'));
-    if (rows === 'mt-rows') run(`initializeModelTrace()`);
+  for (const [renderer, rows, expanded] of [['renderCandyRow','rows','candyExpanded'], ['renderDetectionRow','dt-rows','dtExpanded']]) {
+    assert(run(`${renderer}({...credentials[0], results:[], detections:[]})`).includes('data-enable="free"'));
+    if (rows === 'dt-rows') run(`initializeDetection()`);
     element(rows).listeners.click({target:{closest: (selector) => selector === 'label' ? {} : selector === '[data-row]' ? {dataset:{row:'free'}} : null}});
     assert.equal(run(`${expanded}.has('free')`), false, 'row controls must not expand history');
   }
@@ -284,22 +282,22 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
     {id:'codex',source:'auth_files',provider:'codex'},
     {id:'claude',source:'ai_providers',provider:'claude'},
     {id:'config',source:'ai_providers',provider:'codex'}
-  ].map(a => ({...a, results:[], fingerprints:[], modeltraces:[], pelicans:[]})); renderCredentialFilters(); candySelected.add('claude'); candySelected.add('codex')`);
+  ].map(a => ({...a, results:[], detections:[], pelicans:[]})); renderCredentialFilters(); candySelected.add('claude'); candySelected.add('codex')`);
   assert(element('credential-type').innerHTML.startsWith('<option value="all">全部凭证'));
   assert.equal(element('credential-type').value, 'auth_files:codex');
   assert.deepEqual(plain(run(`selectedCredentials(candySelected).map(a => a.id)`)), ['codex']);
   filter({type:'all'});
   assert.deepEqual(visible(), ['codex', 'claude', 'config']);
-  run(`fpSelected.add('codex'); setCredentialFilter({type:'ai_providers:codex', enabledOnly:true})`);
+  run(`dtSelected.add('codex'); setCredentialFilter({type:'ai_providers:codex', enabledOnly:true})`);
   assert.deepEqual(visible(), ['config']);
-  for (const prefix of ['', 'fp-', 'mt-', 'pl-']) {
+  for (const prefix of ['', 'dt-', 'pl-']) {
     assert.equal(element(prefix + 'credential-type').value, 'ai_providers:codex', 'every tab shows the shared filter');
     assert.equal(element(prefix + 'enabled-only').checked, true);
   }
-  assert.equal(run(`candySelected.size + fpSelected.size`), 0, 'a filter change clears every selection');
+  assert.equal(run(`candySelected.size + dtSelected.size`), 0, 'a filter change clears every selection');
   assert.equal(run(`preference('credential-filter.type', '')`), 'ai_providers:codex');
   run(`var listedCredentials = credentials; credentials = []; renderCredentialFilters()`);
-  assert.equal(element('fp-credential-type').value, 'ai_providers:codex', 'a chosen type stays listed before credentials load');
+  assert.equal(element('dt-credential-type').value, 'ai_providers:codex', 'a chosen type stays listed before credentials load');
   run(`credentials = listedCredentials; setCredentialFilter({type:'auth_files:codex', enabledOnly:false})`);
   const filterCredentials = [
     {id:'enabled',source:'auth_files',provider:'codex',plan_type:'plus'},
@@ -454,7 +452,7 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
   assert.equal(element('flash').role, 'status');
   assert.equal(noticeTimers.size, 1);
 
-  const validState = {auths:[{id:'valid-state',name:'Test',source:'auth_files',provider:'codex',results:[],fingerprints:[],modeltraces:[],pelicans:[]}],storage_error:''};
+  const validState = {auths:[{id:'valid-state',name:'Test',source:'auth_files',provider:'codex',results:[],detections:[],pelicans:[]}],storage_error:''};
   run(`resetCatalogCache(); let finishModels, finishSync, modelsStarted, syncStarted;
     const modelsWaiting = new Promise(resolve => {modelsStarted=resolve});
     const syncWaiting = new Promise(resolve => {syncStarted=resolve});
@@ -478,7 +476,7 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
   assert.equal(element('catalog-error').hidden, false);
   run(`refreshCatalog = async () => {}; api = async () => (${JSON.stringify(validState)})`);
   await run(`load()`);
-  for (const invalid of [{auths:null},{auths:[null]},{auths:[{id:'broken',results:null,fingerprints:[],modeltraces:[],pelicans:[]}]},{auths:[{...validState.auths[0],results:[null]}]}]) {
+  for (const invalid of [{auths:null},{auths:[null]},{auths:[{id:'broken',results:null,detections:[],pelicans:[]}]},{auths:[{...validState.auths[0],results:[null]}]}]) {
     run(`api = async () => (${JSON.stringify(invalid)})`);
     await run(`load()`);
     assert.equal(run(`credentials[0].id`), 'valid-state', 'invalid responses must not replace the last valid state');
@@ -500,7 +498,7 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
   assert.equal(run(`credentials[0].id`), 'valid-state', 'an aborted refresh must not overwrite newer data');
   run(`catalogCache.models = {time:Date.now(),ids:['available-model']}; let submitted = false;
     api = async (path, options) => { if (path.endsWith('/run')) submitted = true; return ${JSON.stringify(validState)}; }`);
-  await run(`update('/modeltrace/run', {method:'POST',body:{auth_ids:['valid-state'],model:'removed-model'}}, '开始测试失败')`);
+  await run(`update('/detection/run', {method:'POST',body:{auth_ids:['valid-state'],model:'removed-model'}}, '开始测试失败')`);
   assert.equal(run(`submitted`), false);
   assert(element('flash .notice-message').textContent.includes('重新选择'));
   assert.equal(run(`pending`), false);
@@ -530,12 +528,12 @@ const stableID = (kind, parts) => kind + ':' + crypto.createHash('sha256').updat
   await enabling;
   assert.equal(run(`credentials[0].disabled || switching.has('valid-state')`), false);
   element('app').hidden = true;
-  assert.equal(run(`mtPercent(undefined)`), '—');
-  assert(!run(`mtResultHTML({status:'completed',model:'test',attribution:{prediction:'test',probability:0.5,used_outputs:1,family_probabilities:null,results:null}})`).includes('NaN'));
-  run(`candySelected.add('a'); fpSelected.add('a'); mtSelected.add('a'); mtExpanded.add('a'); showLogin('Expired')`);
-  assert.equal(run(`credentials.length + candySelected.size + fpSelected.size + mtSelected.size + mtExpanded.size`), 0);
+  assert.equal(run(`dtPercent(undefined)`), '—');
+  assert(!run(`dtResultHTML({status:'completed',model:'test',attribution:{prediction:'test',prediction_name:'test',probability:0.5,used_outputs:1,results:null}})`).includes('NaN'));
+  run(`candySelected.add('a'); dtSelected.add('a'); dtExpanded.add('a'); showLogin('Expired')`);
+  assert.equal(run(`credentials.length + candySelected.size + dtSelected.size + dtExpanded.size`), 0);
   assert.equal(element('app').hidden, true);
   assert.equal(element('login-error').textContent, 'Expired');
-  assert(!element('mt-rows').innerHTML.includes('data-mt-run'));
-  console.log('UI checks passed: identities, filters, plans, enable switches, catalog recovery, ModelTrace results and controls, refresh, login reset, notices, metrics.');
+  assert(!element('dt-rows').innerHTML.includes('data-dt-run'));
+  console.log('UI checks passed: identities, filters, plans, enable switches, catalog recovery, fingerprint detection results and controls, refresh, login reset, notices, metrics.');
 })().catch(err => { console.error(err); process.exitCode = 1; });

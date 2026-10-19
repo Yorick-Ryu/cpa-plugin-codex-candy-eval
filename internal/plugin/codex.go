@@ -129,8 +129,9 @@ type codexTurnMetadata struct {
 }
 
 // codexTurn returns the request and headers of a new Codex thread whose first user message is prompt.
-// An empty effort leaves the reasoning effort to CPA and the upstream default.
-func codexTurn(authID, model, effort, prompt string) (codexRequest, http.Header) {
+// An empty effort leaves the reasoning effort to CPA and the upstream default. Non-empty instructions
+// are sent as Codex sends its developer_instructions setting: first in the first context message.
+func codexTurn(authID, model, effort, instructions, prompt string) (codexRequest, http.Header) {
 	now := time.Now()
 	thread, turnID := uuidV7(), uuidV7().String()
 	threadID := thread.String()
@@ -147,8 +148,12 @@ func codexTurn(authID, model, effort, prompt string) (codexRequest, http.Header)
 	})
 	created := float64(now.UnixMicro()) / 1e6
 	input := codexPrefix(thread)
-	for _, message := range codexContext.Messages {
-		input = append(input, codexMessage("msg_"+uuidV7().String(), message.Role, turnID, created, message.Content...))
+	for i, message := range codexContext.Messages {
+		parts := message.Content
+		if i == 0 && instructions != "" {
+			parts = append([]codexText{{"generic.developer_instructions", instructions}}, parts...)
+		}
+		input = append(input, codexMessage("msg_"+uuidV7().String(), message.Role, turnID, created, parts...))
 	}
 	input = append(input,
 		codexMessage("msg_"+uuidV7().String(), "user", turnID, created,
@@ -185,7 +190,7 @@ func askCodex(auth credential, model, effort, prompt string) (out modelResponse,
 	if effort == "none" {
 		effort = ""
 	}
-	body, headers := codexTurn(auth.ID, model, effort, prompt)
+	body, headers := codexTurn(auth.ID, model, effort, "", prompt)
 	ctx, cancel := withModelTimeout(context.Background(), answerTimeout)
 	defer cancel()
 	start := time.Now()

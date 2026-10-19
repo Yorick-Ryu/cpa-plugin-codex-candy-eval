@@ -15,14 +15,14 @@ new Function("module", "exports", bundled.outputFiles[0].text)(
   module.exports,
 );
 const { parseState, verdict, available, provider } = module.exports;
+globalThis.window = {CANDY_CONFIG: {detection: {aliases: {"gpt-6.1-sol":"gpt-6-astra", "deepseek-flash":"deepseek-v4.1-flash-1017"}}}};
 const auth = {
   id: "synthetic",
   provider: "codex",
   source: "auth_files",
   disabled: false,
   results: [],
-  fingerprints: [],
-  modeltraces: [],
+  detections: [],
   pelicans: [],
 };
 assert.equal(parseState({ auths: [auth] })[0].id, "synthetic");
@@ -36,7 +36,7 @@ for (const malformed of [
   assert.throws(() => parseState(malformed));
 assert.equal(available(auth), true);
 assert.equal(available({ ...auth, unavailable: true }), false);
-assert.equal(available({ ...auth, fingerprint_running: { done: 0 } }), false);
+assert.equal(available({ ...auth, detection_running: { done: 0 } }), false);
 assert.equal(
   provider({ ...auth, provider: "openai-compatible-synthetic" }),
   "openai-compatibility",
@@ -55,7 +55,7 @@ assert.equal(
       model: "vendor/gpt-6.1-sol",
       attribution: { prediction: "gpt-6.1-sol" },
     },
-    "modeltrace",
+    "detection",
   ).tone,
   "success",
 );
@@ -66,18 +66,23 @@ assert.equal(
       model: "gpt-6.1-sol",
       attribution: { prediction: "another-model" },
     },
-    "modeltrace",
+    "detection",
   ).tone,
   "warn",
 );
 assert.equal(
   verdict(
-    { status: "completed", attribution: { status: "substitution" } },
-    "fingerprint",
+    { status: "completed", model: "gpt-6.1-sol", attribution: { decision: "not_model" } },
+    "detection",
   ).tone,
   "warn",
 );
-assert.equal(verdict({ status: "cancelled" }, "fingerprint").tone, "neutral");
+assert.equal(verdict({ status: "cancelled" }, "detection").tone, "neutral");
+for (const [model, prediction] of [["vendor/gpt-6.1-sol", "gpt-6-astra"], ["deepseek-flash", "deepseek-v4.1-flash-1017"]]) {
+  assert.equal(verdict({status:"completed", model, attribution:{prediction}}, "detection").tone,"success");
+}
+assert.equal(verdict({status:"partial", error:"one request failed", model:"gpt-6.1-sol", attribution:{prediction:"gpt-6-astra", probability:null}}, "detection").tone, "success");
+assert.throws(() => parseState({auths:[{...auth,detections:null}]}));
 const apiBundle = await build({
   entryPoints: ["web/src/api.ts"],
   bundle: true,

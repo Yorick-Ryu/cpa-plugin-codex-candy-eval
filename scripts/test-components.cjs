@@ -7,7 +7,7 @@ const webRequire = createRequire(
 const { JSDOM, VirtualConsole } = webRequire("jsdom");
 const { getByRole, getAllByRole, queryByRole, fireEvent, waitFor, within } =
   webRequire("@testing-library/dom");
-const { server, page } = require("./preview.cjs");
+const { server, page, auths, detection } = require("./preview.cjs");
 (async () => {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const origin = "http://127.0.0.1:" + server.address().port;
@@ -24,6 +24,7 @@ const { server, page } = require("./preview.cjs");
     virtualConsole,
     beforeParse(window) {
       window.TextEncoder = TextEncoder;
+      window.localStorage.setItem("cpa-codex-candy-eval.omc.v2.settings", JSON.stringify({candy:{model:"gpt-6.1-sol",effort:"low",runs:1},pelican:{model:"gpt-6.1-sol",effort:"low"}}));
       window.TextDecoder = TextDecoder;
       window.AbortController = AbortController;
       window.AbortSignal = AbortSignal;
@@ -96,54 +97,54 @@ const { server, page } = require("./preview.cjs");
       assert(dom.window.document.head.textContent.includes("#0f766e")),
     );
     assert(openAnswer.isConnected, "theme changes preserve expanded history");
-    fireEvent.click(role("tab", "模型指纹"));
-    await wait(() => assert(role("combobox", "采集模式")));
+    fireEvent.click(role("tab", "指纹检测"));
+    await wait(() => assert(role("spinbutton", "每凭证并发")));
     // Row expansion is intentionally retained while switching test types.
     if (queryByRole(body, "button", { name: "展开行", exact: true }))
       fireEvent.click(role("button", "展开行"));
     fireEvent.click(role("button", "查看详情"));
-    await wait(() => assert(role("dialog", "模型指纹详情")));
-    await wait(() => assert(body.textContent.includes("基准比对")));
-    assert(body.textContent.includes("逐项比对"));
+    await wait(() => assert(role("dialog", "指纹检测详情")));
+    await wait(() => assert(body.textContent.includes("候选模型排行")));
+    fireEvent.click(within(role("dialog", "指纹检测详情")).getByText(/挑战 1 ·/));
+    await wait(() => assert(body.textContent.includes("开发者指令")));
     fireEvent.click(
-      within(role("dialog", "模型指纹详情")).getByRole("button", {
+      within(role("dialog", "指纹检测详情")).getByRole("button", {
         name: "关闭",
         exact: true,
       }),
     );
     await wait(() =>
       assert(
-        !queryByRole(body, "dialog", { name: "模型指纹详情", exact: true }),
+        !queryByRole(body, "dialog", { name: "指纹检测详情", exact: true }),
       ),
     );
-    fireEvent.click(role("button", "采集全部 (1)"));
+    fireEvent.click(role("button", "测试全部 (1)"));
     await wait(() => assert(role("button", "停止")));
+    const detectionRun = requests.find(r => r.path.endsWith("/detection/run"));
+    assert.equal(detectionRun.body.concurrency, 3);
+    assert(!("mode" in detectionRun.body));
     fireEvent.click(role("button", "停止"));
     await wait(() => assert(stat("可测试", 1)));
-    assert(requests.some((r) => r.path.endsWith("/fingerprint/cancel")));
-    fireEvent.click(role("tab", "ModelTrace"));
-    await wait(() => assert(role("tabpanel", "ModelTrace")));
-    if (queryByRole(body, "button", { name: "展开行", exact: true }))
-      fireEvent.click(role("button", "展开行"));
+    assert(requests.some((r) => r.path.endsWith("/detection/cancel")));
+    // Partial detections must omit probabilities while retaining rankings and samples.
+    detection.status = "partial";
+    detection.attribution.probability = null;
+    for (const candidate of detection.attribution.results) candidate.probability = null;
     fireEvent.click(role("button", "查看详情"));
-    await wait(() => assert(role("dialog", "ModelTrace详情")));
-    await wait(() => assert(body.textContent.includes("候选模型排行")));
-    assert(body.textContent.includes("挑战记录"));
-    fireEvent.click(
-      within(role("dialog", "ModelTrace详情")).getByRole("button", {
-        name: "关闭",
-        exact: true,
-      }),
-    );
-    await wait(() =>
-      assert(
-        !queryByRole(body, "dialog", { name: "ModelTrace详情", exact: true }),
-      ),
-    );
-    fireEvent.click(role("tab", "鹈鹕动画"));
+    await wait(() => assert(body.textContent.includes("有效回答不足三条")));
+    assert(body.textContent.includes("候选模型排行"));
+    fireEvent.click(within(role("dialog", "指纹检测详情")).getByRole("button", {name:"关闭", exact:true}));
+    await wait(() => assert(!queryByRole(body,"dialog",{name:"指纹检测详情",exact:true})));
+    detection.attribution.decision = "not_model";
+    fireEvent.click(role("button", "查看详情"));
+    await wait(() => assert(body.textContent.includes("因此未生成排名")));
+    assert(!body.textContent.includes("候选模型排行"));
+    fireEvent.click(within(role("dialog", "指纹检测详情")).getByRole("button", {name:"关闭", exact:true}));
+    await wait(() => assert(!queryByRole(body,"dialog",{name:"指纹检测详情",exact:true})));
+    fireEvent.click(role("tab", "画鹈鹕"));
     await wait(() => assert(role("button", "放大查看鹈鹕动画")));
     fireEvent.click(role("button", "放大查看鹈鹕动画"));
-    await wait(() => assert(role("dialog", "鹈鹕动画详情")));
+    await wait(() => assert(role("dialog", "画鹈鹕详情")));
     await wait(() =>
       assert(
         body
@@ -152,34 +153,34 @@ const { server, page } = require("./preview.cjs");
       ),
     );
     fireEvent.click(
-      within(role("dialog", "鹈鹕动画详情")).getByRole("button", {
+      within(role("dialog", "画鹈鹕详情")).getByRole("button", {
         name: "关闭",
         exact: true,
       }),
     );
     await wait(() =>
       assert(
-        !queryByRole(body, "dialog", { name: "鹈鹕动画详情", exact: true }),
+        !queryByRole(body, "dialog", { name: "画鹈鹕详情", exact: true }),
       ),
     );
-    fireEvent.click(role("tab", "糖果测试"));
-    await wait(() => assert(role("tabpanel", "糖果测试")));
-    fireEvent.click(role("button", "清空糖果测试记录"));
-    await wait(() => assert(role("dialog", "清空糖果测试记录？")));
+    fireEvent.click(role("tab", "糖果题"));
+    await wait(() => assert(role("tabpanel", "糖果题")));
+    fireEvent.click(role("button", "清空糖果题记录"));
+    await wait(() => assert(role("dialog", "清空糖果题记录？")));
     assert.equal(
       requests.filter((r) => r.method === "DELETE").length,
       0,
       "opening clear confirmation must not delete",
     );
     fireEvent.click(
-      within(role("dialog", "清空糖果测试记录？")).getByRole("button", {
+      within(role("dialog", "清空糖果题记录？")).getByRole("button", {
         name: /^取\s*消$/,
       }),
     );
     await wait(() =>
       assert(
         !queryByRole(body, "dialog", {
-          name: "清空糖果测试记录？",
+          name: "清空糖果题记录？",
           exact: true,
         }),
       ),
@@ -187,7 +188,7 @@ const { server, page } = require("./preview.cjs");
     assert.equal(requests.filter((r) => r.method === "DELETE").length, 0);
     assert.deepEqual(errors, []);
     console.log(
-      "Shipped React UI passed: search, selection, run and polling, history, fingerprint detail and cancellation, ModelTrace, sandboxed pelican, clear confirmation.",
+      "Shipped React UI passed: search, selection, run and polling, history, detection ranking, partial/not-model outcomes and cancellation, sandboxed pelican, clear confirmation.",
     );
   } finally {
     dom.window.close();

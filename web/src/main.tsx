@@ -27,7 +27,6 @@ import zhCN from "antd/locale/zh_CN";
 import {
   Candy,
   Fingerprint,
-  ChartNoAxesCombined,
   Play,
   RefreshCw,
   Trash2,
@@ -83,6 +82,8 @@ const pref = (name: string, fallback: any) => {
     const v = JSON.parse(
       localStorage.getItem("cpa-codex-candy-eval.omc.v2." + name) || "null",
     );
+    if (name === "settings" && v && typeof v === "object")
+      return Object.fromEntries(Object.keys(tests).map(t => [t, {...fallback[t], ...v[t]}]));
     return v ?? fallback;
   } catch {
     return fallback;
@@ -105,14 +106,12 @@ function usePreference<T>(name: string, fallback: T): [T, (v: T) => void] {
 }
 const emptySelection = () => ({
   candy: [] as React.Key[],
-  fingerprint: [] as React.Key[],
-  modeltrace: [] as React.Key[],
+  detection: [] as React.Key[],
   pelican: [] as React.Key[],
 });
 const icons = {
   candy: <Candy size={15} />,
-  fingerprint: <Fingerprint size={15} />,
-  modeltrace: <ChartNoAxesCombined size={15} />,
+  detection: <Fingerprint size={15} />,
   pelican: <Play size={15} />,
 };
 const promptText = (id: string) =>
@@ -159,10 +158,7 @@ function EvaluationApp() {
           effort: "low",
           runs: 1,
           mode: "quick",
-          concurrency:
-            t === "fingerprint"
-              ? config.fingerprint.default_concurrency
-              : config.modeltrace.default_concurrency,
+          concurrency: config.detection.requests,
         },
       ]),
     ) as any,
@@ -268,7 +264,7 @@ function EvaluationApp() {
     let changed = false;
     for (const name of Object.keys(tests) as Test[]) {
       const list =
-        name === "fingerprint" || name === "modeltrace"
+        name === "detection"
           ? models.filter((m) => !/[()]/.test(m))
           : models;
       if (!list.includes(next[name].model) && list.length) {
@@ -347,11 +343,8 @@ function EvaluationApp() {
         if (active === "candy" || active === "pelican")
           body.effort = snapshot.effort;
         if (active === "candy") body.runs = snapshot.runs;
-        if (active === "fingerprint") {
-          body.mode = snapshot.mode;
-          body.concurrency = snapshot.concurrency;
-        }
-        if (active === "modeltrace") body.concurrency = snapshot.concurrency;
+
+        if (active === "detection") body.concurrency = snapshot.concurrency;
         const result = await api(BASE + tests[active].scope + "/run", {
           method: "POST",
           body,
@@ -462,11 +455,11 @@ function EvaluationApp() {
               <Progress
                 size="small"
                 percent={Math.round(
-                  ((p.done || 0) / (p.total || config.modeltrace.requests)) *
+                  ((p.done || 0) / (p.total || config.detection.requests)) *
                     100,
                 )}
                 format={() =>
-                  `${p.done || 0}/${p.total || config.modeltrace.requests}`
+                  `${p.done || 0}/${p.total || config.detection.requests}`
                 }
               />
             )}
@@ -476,12 +469,15 @@ function EvaluationApp() {
             <Tooltip title={r?.error || ""}>
               <StatusLabel tone={s.tone}>{s.label}</StatusLabel>
             </Tooltip>
+            {active === "detection" && r?.attribution && r.attribution.decision !== "not_model" && (
+              <span className="secondary">{s.tone === "success" ? "与测试模型一致" : "与测试模型不一致"}{r.status === "partial" ? " · 部分结果" : ""}</span>
+            )}
             {r && (
               <>
                 <span className="secondary mono result-model">
                   {r.model}
                   {r.effort ? " · " + r.effort : ""}
-                  {active === "modeltrace"
+                  {active === "detection"
                     ? " · " + percent(r.attribution?.probability)
                     : ""}
                 </span>
@@ -666,7 +662,7 @@ function EvaluationApp() {
       fixed: "right",
       render: (_: unknown, a: Credential) => {
         const cancellable =
-          (active === "fingerprint" || active === "modeltrace") &&
+          (active === "detection") &&
           progress(a, active);
         return cancellable ? (
           <Button
@@ -708,7 +704,7 @@ function EvaluationApp() {
               }
               onClick={() => void run([a.id])}
             >
-              {active === "fingerprint" ? "采集" : "测试"}
+              测试
             </Button>
           </Tooltip>
         );
@@ -833,7 +829,7 @@ function EvaluationApp() {
     );
   const modelOptions = models
     .filter((m) =>
-      active === "fingerprint" || active === "modeltrace"
+      active === "detection"
         ? !/[()]/.test(m)
         : true,
     )
@@ -956,33 +952,9 @@ function EvaluationApp() {
                   </Typography.Paragraph>
                 ) : (
                   <div className="principle">
-                    {active === "fingerprint" ? (
-                      <>
-                        <p>
-                          不同模型对数字、颜色等简短问题的回答偏好不同。重复采集后，用统计特征与正常模型基准对比；结果不能单独证明模型身份或能力。
-                        </p>
-                        <a
-                          href="https://arxiv.org/abs/2607.10252"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          One Token Is Enough <ExternalLink size={12} />
-                        </a>
-                      </>
-                    ) : (
-                      <>
-                        <p>
-                          采集三份长整数回答，比较数字分布和排列特征，减弱提示环境影响后计算候选模型与模型家族的归因概率。
-                        </p>
-                        <a
-                          href="https://github.com/xqy2006/ModelTrace"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          ModelTrace <ExternalLink size={12} />
-                        </a>
-                      </>
-                    )}
+                    <p>不同模型生成整数时，对数值、区间、末位数字及相邻数字变化的偏好相对稳定。每次从参考库的 36 道挑战中随机抽取 3 道进行比对。</p>
+                    <p>相邻数字的变化方式不像语言模型时不生成排名；三条回答有效时给出归因概率，一两条有效时只给出排名。概率仅在参考库模型之间分配，不能证明模型身份。</p>
+                    <a href="https://github.com/Ikaleio/lm-detector" target="_blank" rel="noreferrer">LM Fingerpoint Detector <ExternalLink size={12} /></a>
                   </div>
                 ),
             },
@@ -1030,25 +1002,13 @@ function EvaluationApp() {
               />
             </Form.Item>
           )}
-          {active === "fingerprint" && (
-            <Form.Item label="采集模式">
-              <Select
-                aria-label="采集模式"
-                value={currentSettings.mode}
-                options={config.fingerprint.modes.map((m: any) => ({
-                  value: m.id,
-                  label: `${m.name} · ${m.cells * m.samples_per_cell} 次`,
-                }))}
-                onChange={(v) => setSetting("mode", v)}
-              />
-            </Form.Item>
-          )}
-          {(active === "fingerprint" || active === "modeltrace") && (
+
+          {(active === "detection") && (
             <Form.Item label="每凭证并发">
               <InputNumber
                 aria-label="每凭证并发"
                 min={1}
-                max={config[active].max_concurrency}
+                max={config.detection.requests}
                 precision={0}
                 value={currentSettings.concurrency}
                 onChange={(v) => setSetting("concurrency", v ?? 1)}
@@ -1065,7 +1025,7 @@ function EvaluationApp() {
                 !targets.length || !models.includes(currentSettings.model)
               }
             >
-              {active === "fingerprint" ? "采集" : "测试"}
+              测试
               {selectedAuths.length ? "所选" : "全部"} ({targets.length})
             </Button>
           </Form.Item>
@@ -1086,18 +1046,9 @@ function EvaluationApp() {
         ) : (
           <span>
             每个凭证{" "}
-            {active === "fingerprint"
-              ? (config.fingerprint.modes.find(
-                  (m: any) => m.id === currentSettings.mode,
-                )?.cells || 0) *
-                (config.fingerprint.modes.find(
-                  (m: any) => m.id === currentSettings.mode,
-                )?.samples_per_cell || 0)
-              : active === "modeltrace"
-                ? config.modeltrace.requests
-                : 1}{" "}
+            {active === "detection" ? config.detection.requests : 1}{" "}
             次请求
-            {active === "fingerprint" || active === "modeltrace"
+            {active === "detection"
               ? "（失败会重试）"
               : ""}
           </span>
