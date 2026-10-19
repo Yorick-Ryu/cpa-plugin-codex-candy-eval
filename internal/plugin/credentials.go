@@ -55,14 +55,12 @@ type hostAuthFile struct {
 
 type credentialView struct {
 	credential
-	Running            *candyProgress       `json:"running,omitempty"`
-	Results            []candyResult        `json:"results"`
-	FingerprintRunning *fingerprintProgress `json:"fingerprint_running,omitempty"`
-	Fingerprints       []fingerprintResult  `json:"fingerprints"`
-	ModelTraceRunning  *traceProgress       `json:"modeltrace_running,omitempty"`
-	ModelTraces        []traceResult        `json:"modeltraces"`
-	PelicanRunning     bool                 `json:"pelican_running,omitempty"`
-	Pelicans           []pelicanResult      `json:"pelicans"`
+	Running          *candyProgress     `json:"running,omitempty"`
+	Results          []candyResult      `json:"results"`
+	DetectionRunning *detectionProgress `json:"detection_running,omitempty"`
+	Detections       []detectionResult  `json:"detections"`
+	PelicanRunning   bool               `json:"pelican_running,omitempty"`
+	Pelicans         []pelicanResult    `json:"pelicans"`
 }
 
 // host.auth.list omits some config-backed credentials. The UI syncs their CPA

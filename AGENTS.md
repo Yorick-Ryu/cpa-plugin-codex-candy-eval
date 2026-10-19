@@ -16,7 +16,8 @@
 - `internal/plugin/web/vendor/`: vendored Markdown (markdown-it with
   markdown-it-cjk-friendly) and math (markdown-it-texmath, Temml) renderers
   for candy answers.
-- `internal/plugin/data/`: embedded fingerprint probes and baselines.
+- `internal/plugin/data/`: embedded Codex context and lm-detector data for
+  fingerprint detection.
 - `docs/images/`: README screenshots.
 - `docs/inspection.md`, `examples/inspection.py`: scheduled inspection guide
   and its standard-library Python script.

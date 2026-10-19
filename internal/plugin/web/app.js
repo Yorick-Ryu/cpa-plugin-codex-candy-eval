@@ -6,8 +6,8 @@ const DEFAULT_MODEL = "gpt-6.1-sol";
 const DEFAULT_EFFORT = "low";
 const DEFAULT_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"];
 const HIDDEN_MODEL = (id) => id.toLowerCase().includes("image");
-const tabNames = ["candy", "fingerprint", "modeltrace", "pelican"];
-const tabPrefixes = ["", "fp-", "mt-", "pl-"];
+const tabNames = ["candy", "detection", "pelican"];
+const tabPrefixes = ["", "dt-", "pl-"];
 
 let key = "";
 let credentials = [];
@@ -100,8 +100,8 @@ function savePreference(name, value) {
 }
 function fillModels() {
   const ids = [...new Set(catalogCache.models?.ids || [])].sort(compareModels);
-  const probeModels = ids.filter((id) => !/[()]/.test(id));
-  for (const [id, models] of [["model", ids], ["fp-model", probeModels], ["mt-model", probeModels], ["pl-model", ids]]) {
+  const unsuffixed = ids.filter((id) => !/[()]/.test(id));
+  for (const [id, models] of [["model", ids], ["dt-model", unsuffixed], ["pl-model", ids]]) {
     fillSelect(id, models, $(id).value || preference(id, DEFAULT_MODEL), DEFAULT_MODEL);
   }
 }
@@ -168,7 +168,7 @@ function rowNode(html) {
 }
 
 function renderPageActions() {
-  $("clear-all").disabled = pending || credentials.every((a) => !a.results.length && !a.fingerprints?.length && !a.modeltraces?.length && !a.pelicans?.length);
+  $("clear-all").disabled = pending || credentials.every((a) => !a.results.length && !a.detections?.length && !a.pelicans?.length);
   $("refresh").disabled = pending || refreshing;
   $("refresh").setAttribute("aria-busy", refreshing);
 }
@@ -178,8 +178,7 @@ function render() {
   setNotice("storage-error", storageError);
   renderCredentialFilters();
   renderCandy();
-  renderFingerprints();
-  renderModelTrace();
+  renderDetection();
   renderPelican();
 }
 
@@ -192,7 +191,7 @@ function stopPolling() {
 function stateCredentials(data) {
   const validRecord = (r) => r !== null && typeof r === "object" && !Array.isArray(r);
   if (!Array.isArray(data.auths) || data.auths.some((a) => !a || typeof a.id !== "string" || !a.id.trim() ||
-    ["results", "fingerprints", "modeltraces", "pelicans"].some((field) => !Array.isArray(a[field]) || !a[field].every(validRecord)))) {
+    ["results", "detections", "pelicans"].some((field) => !Array.isArray(a[field]) || !a[field].every(validRecord)))) {
     throw new Error("服务器返回的测试记录格式无效。");
   }
   return data.auths;
@@ -226,10 +225,10 @@ async function load({ refresh = false } = {}) {
     const usable = new Set(credentials.filter(usableCredential).map((a) => a.id));
     const answers = new Set(credentials.flatMap((a) => a.results.map((r) => answerKey(a.id, r))));
     const pages = new Set(credentials.flatMap((a) => a.pelicans.map((r) => pelicanKey(a.id, r.id))));
-    for (const expanded of [candyExpanded, fpExpanded, mtExpanded, plExpanded]) {
+    for (const expanded of [candyExpanded, dtExpanded, plExpanded]) {
       for (const id of expanded) if (!ids.has(id)) expanded.delete(id);
     }
-    for (const selection of [candySelected, fpSelected, mtSelected, plSelected]) {
+    for (const selection of [candySelected, dtSelected, plSelected]) {
       for (const id of selection) if (!usable.has(id)) selection.delete(id);
     }
     for (const id of candyAnswersExpanded) if (!answers.has(id)) candyAnswersExpanded.delete(id);
@@ -287,7 +286,7 @@ function showLogin(message) {
   resetCatalogCache();
   credentials = [];
   loadError = storageError = "";
-  for (const collection of [candySelected, fpSelected, mtSelected, plSelected, candyExpanded, fpExpanded, mtExpanded, plExpanded, candyAnswersExpanded, pelicanPages]) collection.clear();
+  for (const collection of [candySelected, dtSelected, plSelected, candyExpanded, dtExpanded, plExpanded, candyAnswersExpanded, pelicanPages]) collection.clear();
   for (const id of notices.keys()) setNotice(id, "");
   hideTip();
   document.querySelectorAll("dialog[open]").forEach((dialog) => dialog.close());
@@ -329,7 +328,7 @@ function switchTab(name) {
   hideTip();
   savePreference("tab", name);
 }
-const BUSY_TESTS = [["running", "糖果测试"], ["fingerprint_running", "指纹测试"], ["modeltrace_running", "ModelTrace 测试"], ["pelican_running", "鹈鹕测试"]];
+const BUSY_TESTS = [["running", "糖果测试"], ["detection_running", "指纹检测"], ["pelican_running", "鹈鹕测试"]];
 const busyTest = (a) => BUSY_TESTS.find(([field]) => a[field])?.[1] || "";
 const credentialBusy = (a) => !!busyTest(a);
 const usableCredential = (a) => !a.disabled && !a.unavailable;
@@ -443,14 +442,13 @@ function setCredentialFilter(change) {
     credentialFilter[name] = value;
     savePreference("credential-filter." + name, value);
   }
-  for (const selection of [candySelected, fpSelected, mtSelected, plSelected]) selection.clear();
+  for (const selection of [candySelected, dtSelected, plSelected]) selection.clear();
   render();
 }
 
 function initializeLayout() {
   $("candy-credentials").innerHTML = credentialCard("", "糖果测试", ["凭证", "最近一次", "正确率", "最近 20 次"]);
-  $("fp-credentials").innerHTML = credentialCard("fp-", "指纹测试", ["凭证", "指纹结果", "模式", "测试时间"]);
-  $("mt-credentials").innerHTML = credentialCard("mt-", "ModelTrace 测试", ["凭证", "归因结果", "测试模型", "测试时间"]);
+  $("dt-credentials").innerHTML = credentialCard("dt-", "指纹检测", ["凭证", "归因结果", "测试模型", "测试时间"]);
   $("pl-credentials").innerHTML = credentialCard("pl-", "鹈鹕测试", ["凭证", "最近一次", "动画"]);
   $("notifications").innerHTML = ["flash", "load-error", "catalog-error", "storage-error"].map((id) => `<div id="${id}" class="global-flash" role="alert" hidden><span class="notice-symbol" aria-hidden="true"></span><span class="notice-message"></span><button class="notice-close" type="button" aria-label="隐藏提示" data-tip>${icon("x")}</button></div>`).join("");
 }
@@ -460,8 +458,7 @@ initializeLayout();
 initializeTips();
 initializeCopyButtons();
 initializeCandy();
-initializeFingerprint();
-initializeModelTrace();
+initializeDetection();
 initializePelican();
 document.querySelectorAll("[data-icon]").forEach((el) => { el.outerHTML = icon(el.dataset.icon, el.dataset.class); });
 
@@ -502,7 +499,7 @@ for (const prefix of tabPrefixes) {
   $(prefix + "credential-plan").addEventListener("change", (e) => setCredentialFilter({ plan: e.target.value }));
 }
 
-for (const [id, scope] of [["clear", "candy"], ["fp-clear", "fingerprint"], ["mt-clear", "modeltrace"], ["pl-clear", "pelican"], ["clear-all", "all"]]) {
+for (const [id, scope] of [["clear", "candy"], ["dt-clear", "detection"], ["pl-clear", "pelican"], ["clear-all", "all"]]) {
   $(id).addEventListener("click", () => {
     clearScope = scope;
     $("clear-title").textContent = `${$(id).getAttribute("aria-label")}？`;
@@ -534,7 +531,7 @@ for (const name of tabNames) {
 const savedTab = preference("tab", "candy");
 switchTab(tabNames.includes(savedTab) ? savedTab : "candy");
 
-for (const [prefix, type, selection, submit] of [["", "candy", candySelected, runCandy], ["fp-", "fp", fpSelected, runFingerprint], ["mt-", "mt", mtSelected, runModelTrace], ["pl-", "pl", plSelected, runPelican]]) {
+for (const [prefix, type, selection, submit] of [["", "candy", candySelected, runCandy], ["dt-", "dt", dtSelected, runDetection], ["pl-", "pl", plSelected, runPelican]]) {
   // Each test keeps its own settings, saved by control after the control normalizes its value.
   $(prefix + "toolbar").addEventListener("change", (e) => savePreference(e.target.id, e.target.type === "number" ? e.target.valueAsNumber : e.target.value));
   $(prefix + "toolbar").addEventListener("submit", (e) => {

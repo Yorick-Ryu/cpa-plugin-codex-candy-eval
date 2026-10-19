@@ -21,8 +21,7 @@ func setupTest(t *testing.T) {
 	previousHost, previousPath, previousLoaded := hostCall, statePath, loaded
 	previousLoadError, previousQuiescing := stateLoadError, quiescing
 	previousResults, previousRunning := candyResults, candyRunning
-	previousFPResults, previousFPRunning, previousFPError := fingerprintResults, fingerprintRunning, storageError
-	previousTraceResults, previousTraceRunning := traceResults, traceRunning
+	previousDetectionResults, previousDetectionRunning, previousStorageError := detectionResults, detectionRunning, storageError
 	previousPelicanResults, previousPelicanRunning := pelicanResults, pelicanRunning
 	previousInspections := inspections
 	t.Cleanup(func() {
@@ -31,16 +30,14 @@ func setupTest(t *testing.T) {
 		hostCall, statePath, loaded = previousHost, previousPath, previousLoaded
 		stateLoadError, quiescing = previousLoadError, previousQuiescing
 		candyResults, candyRunning = previousResults, previousRunning
-		fingerprintResults, fingerprintRunning, storageError = previousFPResults, previousFPRunning, previousFPError
-		traceResults, traceRunning = previousTraceResults, previousTraceRunning
+		detectionResults, detectionRunning, storageError = previousDetectionResults, previousDetectionRunning, previousStorageError
 		pelicanResults, pelicanRunning = previousPelicanResults, previousPelicanRunning
 		inspections = previousInspections
 	})
 	statePath, loaded = filepath.Join(t.TempDir(), "state.json"), false
 	stateLoadError, quiescing = nil, false
 	candyResults, candyRunning = map[string][]candyResult{}, map[string]*candyProgress{}
-	fingerprintResults, fingerprintRunning, storageError = map[string][]fingerprintResult{}, map[string]*fingerprintProgress{}, ""
-	traceResults, traceRunning = map[string][]traceResult{}, map[string]*traceProgress{}
+	detectionResults, detectionRunning, storageError = map[string][]detectionResult{}, map[string]*detectionProgress{}, ""
 	pelicanResults, pelicanRunning = map[string][]pelicanResult{}, map[string]bool{}
 	inspections = map[string]inspection{}
 	hostCall = func(method string, _ any) (json.RawMessage, error) {
@@ -234,7 +231,7 @@ func TestStatePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	loadState()
-	if len(candyResults["old"]) != 1 || len(fingerprintResults) != 0 {
+	if len(candyResults["old"]) != 1 || len(detectionResults) != 0 {
 		t.Fatal("independent candy history was not restored")
 	}
 	loaded = false
@@ -295,7 +292,7 @@ func TestQuiesceDrainsBothTests(t *testing.T) {
 	gate, started := make(chan struct{}), make(chan struct{}, 3)
 	hostCall = streamHost(func(method string, _ any) (json.RawMessage, error) {
 		if method == "host.auth.list" {
-			return json.RawMessage(`{"files":[{"id":"candy","provider":"codex"},{"id":"fingerprint","provider":"codex"}]}`), nil
+			return json.RawMessage(`{"files":[{"id":"candy","provider":"codex"},{"id":"detection","provider":"codex"}]}`), nil
 		}
 		select {
 		case started <- struct{}{}:
@@ -306,8 +303,8 @@ func TestQuiesceDrainsBothTests(t *testing.T) {
 	})
 	defer func() { close(gate); tasks.Wait() }()
 	candy := []byte(`{"auth_ids":["candy"],"model":"gpt-5.5","runs":10}`)
-	fingerprint := []byte(`{"auth_ids":["fingerprint"],"model":"gpt-5.5","mode":"quick"}`)
-	if candyRunResponse(candy).StatusCode != 200 || fingerprintRunResponse(fingerprint).StatusCode != 200 {
+	detection := []byte(`{"auth_ids":["detection"],"model":"gpt-5.5","concurrency":2}`)
+	if candyRunResponse(candy).StatusCode != 200 || detectionRunResponse(detection).StatusCode != 200 {
 		t.Fatal("could not start tests")
 	}
 	for range 3 {
@@ -330,7 +327,7 @@ func TestQuiesceDrainsBothTests(t *testing.T) {
 			t.Fatal("plugin did not enter quiesce")
 		}
 	}
-	if candyRunResponse(candy).StatusCode != 503 || fingerprintRunResponse(fingerprint).StatusCode != 503 {
+	if candyRunResponse(candy).StatusCode != 503 || detectionRunResponse(detection).StatusCode != 503 {
 		t.Fatal("quiescing plugin accepted new tasks")
 	}
 	for range 3 {
@@ -341,7 +338,7 @@ func TestQuiesceDrainsBothTests(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("plugin did not finish in-flight tasks")
 	}
-	if len(candyResults["candy"]) != 1 || fingerprintResults["fingerprint"][0].Status != "cancelled" {
+	if len(candyResults["candy"]) != 1 || detectionResults["detection"][0].Status != "cancelled" {
 		t.Fatal("quiesce did not stop further collection")
 	}
 	HandleMethod("plugin.reconfigure", nil)

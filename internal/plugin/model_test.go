@@ -66,8 +66,8 @@ func TestRunModelValidation(t *testing.T) {
 		return nil, nil
 	}
 	for _, model := range []string{"", strings.Repeat("m", 201), "model\x00name", "model\nname"} {
-		body, _ := json.Marshal(map[string]any{"model": model, "mode": "quick"})
-		for _, run := range []func([]byte) managementResponse{candyRunResponse, fingerprintRunResponse, traceRunResponse, pelicanRunResponse} {
+		body, _ := json.Marshal(map[string]any{"model": model})
+		for _, run := range []func([]byte) managementResponse{candyRunResponse, detectionRunResponse, pelicanRunResponse} {
 			if response := run(body); response.StatusCode != http.StatusBadRequest {
 				t.Fatalf("accepted invalid model %q: %s", model, response.Body)
 			}
@@ -75,10 +75,10 @@ func TestRunModelValidation(t *testing.T) {
 	}
 }
 
-func TestModelTraceRetriesSameProbe(t *testing.T) {
+func TestDetectionRetriesSameProbe(t *testing.T) {
 	setupTest(t)
 	var calls atomic.Int32
-	traceTestHost(t, func() (string, int) {
+	detectionTestHost(t, func() (string, int) {
 		switch calls.Add(1) {
 		case 1:
 			return "busy", 429
@@ -97,9 +97,9 @@ func TestModelTraceRetriesSameProbe(t *testing.T) {
 		}
 		return call(method, payload)
 	}
-	traceRunResponse([]byte(`{"all":true,"model":"test-model","concurrency":1}`))
+	detectionRunResponse([]byte(`{"all":true,"model":"test-model","concurrency":1}`))
 	tasks.Wait()
-	r := traceResults["a"][0]
+	r := detectionResults["a"][0]
 	if calls.Load() != 5 || len(r.Samples) != 3 || r.Samples[0].Attempts != 3 || r.Status != "completed" || r.InputTokens != 36 || r.OutputTokens != 9 || r.ReasoningTokens != 3 {
 		t.Fatalf("requests=%d, result=%+v", calls.Load(), r)
 	}
@@ -111,16 +111,16 @@ func TestModelTraceRetriesSameProbe(t *testing.T) {
 func TestProbeRetryLimitAndCancellation(t *testing.T) {
 	setupTest(t)
 	var calls atomic.Int32
-	traceTestHost(t, func() (string, int) { calls.Add(1); return "busy", 429 })
+	detectionTestHost(t, func() (string, int) { calls.Add(1); return "busy", 429 })
 	auth := credential{ID: "a", Provider: "codex"}
-	body, headers := codexTurn(auth.ID, "test-model", "", "禁止调用工具")
+	body, headers := codexTurn(auth.ID, "test-model", "", "", detectionSuite[0].Prompt)
 	slots := make(chan struct{}, 1)
 	_, attempts, err := executeProbe(context.Background(), auth, "test-model", body, headers, slots)
 	if err == nil || attempts != 3 || calls.Load() != 3 || len(slots) != 0 {
 		t.Fatalf("retry limit: attempts=%d calls=%d err=%v", attempts, calls.Load(), err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	traceTestHost(t, func() (string, int) { cancel(); return "busy", 429 })
+	detectionTestHost(t, func() (string, int) { cancel(); return "busy", 429 })
 	_, attempts, err = executeProbe(ctx, auth, "test-model", body, headers, slots)
 	if err != context.Canceled || attempts != 1 || len(slots) != 0 {
 		t.Fatalf("cancelled retry: attempts=%d err=%v", attempts, err)

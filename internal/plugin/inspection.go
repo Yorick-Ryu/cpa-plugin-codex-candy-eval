@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"path"
 	"slices"
-	"strings"
 	"time"
 )
 
@@ -22,7 +21,7 @@ type inspectionItem struct {
 }
 
 var inspectionRuns = map[string]func([]byte) managementResponse{
-	"candy": candyRunResponse, "fingerprint": fingerprintRunResponse, "modeltrace": traceRunResponse,
+	"candy": candyRunResponse, "detection": detectionRunResponse,
 }
 
 // The latest inspection of each test, kept until the plugin stops.
@@ -82,7 +81,7 @@ func matchesAny(auth credential, patterns []string) bool {
 
 // inspectionResponse reports whether the latest inspection of test is still running, and the records each
 // of its credentials got from it. A credential is degraded when any of them shows so: a wrong candy
-// answer, or a fingerprint or ModelTrace attribution to another model.
+// answer, or a fingerprint detection that attributes the answers to another model.
 func inspectionResponse(test string) managementResponse {
 	auths, err := credentials()
 	if err != nil {
@@ -106,20 +105,13 @@ func inspectionResponse(test string) managementResponse {
 			item.Results, item.Degraded = inspected(candyResults[auth.ID], latest.started, func(r candyResult) (time.Time, bool, bool) {
 				return r.Time, !r.Skipped && r.Error == "", !r.OK
 			})
-		case "fingerprint":
-			running = running || fingerprintRunning[auth.ID] != nil
-			records, degraded := inspected(fingerprintResults[auth.ID], latest.started, func(r fingerprintResult) (time.Time, bool, bool) {
-				status := r.Attribution.Status
-				return r.Time, r.Status == "completed" && (status == "consistent" || status == "substitution" || status == "different"), status != "consistent"
-			})
-			item.Results, item.Degraded = summaries(records), degraded
-		case "modeltrace":
-			running = running || traceRunning[auth.ID] != nil
-			records, degraded := inspected(traceResults[auth.ID], latest.started, func(r traceResult) (time.Time, bool, bool) {
+		case "detection":
+			running = running || detectionRunning[auth.ID] != nil
+			records, degraded := inspected(detectionResults[auth.ID], latest.started, func(r detectionResult) (time.Time, bool, bool) {
 				if r.Attribution == nil || (r.Status != "completed" && r.Status != "partial") {
 					return r.Time, false, false
 				}
-				return r.Time, true, traceModelID(r.Model) != traceModelID(r.Attribution.Prediction)
+				return r.Time, true, detectionModelID(r.Model) != detectionModelID(r.Attribution.Prediction)
 			})
 			item.Results, item.Degraded = summaries(records), degraded
 		}
@@ -145,10 +137,4 @@ func inspected[T any](history []T, started time.Time, judge func(T) (at time.Tim
 		return records, nil
 	}
 	return records, &anyDegraded
-}
-
-// traceModelID drops a provider prefix such as "openai/", as the page does when comparing models.
-func traceModelID(model string) string {
-	model = strings.ToLower(strings.TrimSpace(model))
-	return model[strings.LastIndex(model, "/")+1:]
 }

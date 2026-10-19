@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
-<!--MODELTRACE_LICENSE-->
+<!--DETECTOR_LICENSE-->
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -26,10 +26,9 @@
     <div id="app" hidden>
       <div class="page-navigation card">
         <div class="tabs" role="tablist" aria-label="测试类型">
-          <button id="tab-candy" class="tab" role="tab" aria-selected="true" aria-controls="candy-panel" type="button">糖果</button>
-          <button id="tab-fingerprint" class="tab" role="tab" aria-selected="false" aria-controls="fingerprint-panel" tabindex="-1" type="button">指纹</button>
-          <button id="tab-modeltrace" class="tab" role="tab" aria-selected="false" aria-controls="modeltrace-panel" tabindex="-1" type="button">ModelTrace</button>
-          <button id="tab-pelican" class="tab" role="tab" aria-selected="false" aria-controls="pelican-panel" tabindex="-1" type="button">鹈鹕</button>
+          <button id="tab-candy" class="tab" role="tab" aria-selected="true" aria-controls="candy-panel" type="button">糖果题</button>
+          <button id="tab-detection" class="tab" role="tab" aria-selected="false" aria-controls="detection-panel" tabindex="-1" type="button">指纹检测</button>
+          <button id="tab-pelican" class="tab" role="tab" aria-selected="false" aria-controls="pelican-panel" tabindex="-1" type="button">画鹈鹕</button>
         </div>
         <div class="page-actions">
           <button id="clear-all" type="button" aria-label="清空全部测试记录" data-tip disabled><i data-icon="trash-2"></i></button>
@@ -65,46 +64,25 @@
 
         <section id="candy-credentials" class="card"></section>
       </section>
-      <section id="fingerprint-panel" role="tabpanel" aria-labelledby="tab-fingerprint" hidden>
+      <section id="detection-panel" role="tabpanel" aria-labelledby="tab-detection" hidden>
         <div class="panel-intro">
-          <p>采集模型的回答特征，与正常基准对比，判断模型是否被替换。</p>
-          <details class="problem" id="fp-principle">
+          <p>通过三次数字生成挑战，识别参考库中最接近的模型。</p>
+          <details class="problem" id="dt-principle">
             <summary><i data-icon="chevron-right" data-class="chev"></i>查看原理</summary>
             <div class="problem-body principle-body">
-              <p>即使让模型“随便说一个数字或颜色”，不同模型也会呈现不同的回答偏好。重复提问后，这些偏好就形成了可比较的行为“指纹”。</p>
-              <p>本测试采集多组简短回答，与正常模型的指纹对比，判断是否一致、是否更像其他模型。结果基于统计特征，不能单独证明模型身份或能力。</p>
-              <p>来源论文：Tomas Bruckner，<a href="https://arxiv.org/abs/2607.10252" target="_blank" rel="noopener noreferrer" data-tip="One Token Is Enough: Fingerprinting and Verifying Large Language Models from Single-Token Output Distributions">《One Token Is Enough》</a>（2026）。</p>
+              <p>不同模型写出几百个 1–355 的整数时，偏好的数值、区间、末位数字和相邻数字的变化方式相对稳定。每次测试从参考库的 36 道采样挑战中随机抽取 3 道，把回答与参考库中各模型的指纹比对。</p>
+              <p>相邻数字的变化方式不像语言模型时，不生成排名。三条回答都有效时，给出各模型的归因概率；只有一两条有效时，只给出排名。归因概率只在参考库的模型之间分配，不能证明模型身份。</p>
+              <p>方法与参考库来源：<a href="https://github.com/Ikaleio/lm-detector" target="_blank" rel="noopener noreferrer">LM Fingerpoint Detector</a>。</p>
             </div>
           </details>
         </div>
-        <form id="fp-toolbar" class="card toolbar">
-          <label class="field"><span class="field-label">模型</span><span class="native-select"><select id="fp-model"></select></span></label>
-          <label class="field"><span class="field-label">采集模式</span><span class="native-select"><select id="fp-mode"></select></span></label>
-          <label class="field"><span class="field-label">每凭证并发</span><input id="fp-concurrency" class="mono" type="number" min="1" step="1" required></label>
-          <button id="fp-run-batch" class="btn" type="submit" disabled>采集全部</button>
+        <form id="dt-toolbar" class="card toolbar">
+          <label class="field"><span class="field-label">模型</span><span class="native-select"><select id="dt-model"></select></span></label>
+          <label class="field"><span class="field-label">每凭证并发</span><input id="dt-concurrency" class="mono" type="number" min="1" step="1" required></label>
+          <button id="dt-run-batch" class="btn" type="submit" disabled>测试全部</button>
         </form>
-        <div class="legend"><span id="fp-cost"></span></div>
-        <section id="fp-credentials" class="card"></section>
-      </section>
-      <section id="modeltrace-panel" role="tabpanel" aria-labelledby="tab-modeltrace" hidden>
-        <div class="panel-intro">
-          <p>通过三次数字生成挑战，识别最接近的模型家族与版本。</p>
-          <details class="problem" id="mt-principle">
-            <summary><i data-icon="chevron-right" data-class="chev"></i>查看原理</summary>
-            <div class="problem-body principle-body">
-              <p>不同模型生成长整数序列时，会表现出不同的数字偏好与排列特征。本测试自动采集三份回答，提取数字分布和序列特征，与候选模型的指纹对比。</p>
-              <p>比对时先减弱提示词等环境因素的影响，再汇总三份回答的得分，计算各模型的归因概率。同一家族内各模型的概率之和，即为家族概率。</p>
-              <p>方法来源：<a href="https://github.com/xqy2006/ModelTrace" target="_blank" rel="noopener noreferrer">ModelTrace</a>。</p>
-            </div>
-          </details>
-        </div>
-        <form id="mt-toolbar" class="card toolbar">
-          <label class="field"><span class="field-label">模型</span><span class="native-select"><select id="mt-model"></select></span></label>
-          <label class="field"><span class="field-label">每凭证并发</span><input id="mt-concurrency" class="mono" type="number" min="1" step="1" required></label>
-          <button id="mt-run-batch" class="btn" type="submit" disabled>测试全部</button>
-        </form>
-        <div class="legend"><span id="mt-cost"></span></div>
-        <section id="mt-credentials" class="card"></section>
+        <div class="legend"><span id="dt-cost"></span></div>
+        <section id="dt-credentials" class="card"></section>
       </section>
       <section id="pelican-panel" role="tabpanel" aria-labelledby="tab-pelican" hidden>
         <div class="panel-intro">
@@ -136,13 +114,9 @@
         </div>
       </form>
     </dialog>
-    <dialog id="fp-detail" class="result-dialog" aria-labelledby="fp-detail-title">
-      <div class="section-head result-dialog-head"><h2 id="fp-detail-title">指纹详情</h2><button id="fp-detail-close" class="btn ghost icon-button" type="button" aria-label="关闭详情"><i data-icon="x"></i></button></div>
-      <div id="fp-detail-body" class="result-dialog-body"></div>
-    </dialog>
-    <dialog id="mt-detail" class="result-dialog" aria-labelledby="mt-detail-title">
-      <div class="section-head result-dialog-head"><h2 id="mt-detail-title">ModelTrace 详情</h2><button id="mt-detail-close" class="btn ghost icon-button" type="button" aria-label="关闭 ModelTrace 详情"><i data-icon="x"></i></button></div>
-      <div id="mt-detail-body" class="result-dialog-body"></div>
+    <dialog id="dt-detail" class="result-dialog" aria-labelledby="dt-detail-title">
+      <div class="section-head result-dialog-head"><h2 id="dt-detail-title">指纹检测详情</h2><button id="dt-detail-close" class="btn ghost icon-button" type="button" aria-label="关闭详情"><i data-icon="x"></i></button></div>
+      <div id="dt-detail-body" class="result-dialog-body"></div>
     </dialog>
     <dialog id="pl-detail" class="result-dialog" aria-labelledby="pl-detail-title">
       <div class="section-head result-dialog-head"><h2 id="pl-detail-title">鹈鹕动画</h2><button id="pl-detail-close" class="btn ghost icon-button" type="button" aria-label="关闭动画"><i data-icon="x"></i></button></div>
@@ -164,8 +138,7 @@
   <script>/*CATALOG_SCRIPT*/</script>
   <script>/*COMPONENTS_SCRIPT*/</script>
   <script>/*CANDY_SCRIPT*/</script>
-  <script>/*FINGERPRINT_SCRIPT*/</script>
-  <script>/*MODELTRACE_SCRIPT*/</script>
+  <script>/*DETECTION_SCRIPT*/</script>
   <script>/*PELICAN_SCRIPT*/</script>
   <script>/*APP_SCRIPT*/</script>
 </body>

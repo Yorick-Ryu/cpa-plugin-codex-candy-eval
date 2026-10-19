@@ -70,7 +70,7 @@ def is_free(c):
 
 def available(c):
     return c is not None and not c.get("disabled") and not c.get("unavailable") and not any(
-        c.get(key) for key in ("running", "fingerprint_running", "modeltrace_running", "pelican_running")
+        c.get(key) for key in ("running", "detection_running", "pelican_running")
     )
 
 

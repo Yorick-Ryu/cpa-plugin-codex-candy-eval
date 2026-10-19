@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestInspection(t *testing.T) {
@@ -36,26 +35,18 @@ func TestInspection(t *testing.T) {
 	}
 
 	// b is out of scope; an earlier result of a, from before the inspection, must not count.
-	traceResults["a"] = []traceResult{{Model: "test-model", Status: "completed", Attribution: &traceAttribution{Prediction: "test-model"}}}
-	if r := inspectionRunResponse([]byte(`{"test":"modeltrace","model":"test-model","exclude":["*@y.com"]}`)); r.StatusCode != 200 {
+	detectionResults["a"] = []detectionResult{{Model: "test-model", Status: "completed", Attribution: &detectionAttribution{Prediction: "test-model"}}}
+	if r := inspectionRunResponse([]byte(`{"test":"detection","model":"test-model","exclude":["*@y.com"]}`)); r.StatusCode != 200 {
 		t.Fatalf("run: %s", r.Body)
 	}
-	running, verdicts := report("modeltrace")
+	running, verdicts := report("detection")
 	close(gate)
 	if !running || verdicts != "a.json=null" {
 		t.Fatalf("running inspection: %v %s", running, verdicts)
 	}
 	tasks.Wait()
-	if running, verdicts := report("modeltrace"); running || verdicts != "a.json=true" {
+	if running, verdicts := report("detection"); running || verdicts != "a.json=true" {
 		t.Fatalf("finished inspection: %v %s", running, verdicts)
 	}
 
-	inspections["fingerprint"] = inspection{authIDs: []string{"a", "b"}}
-	fingerprintResults = map[string][]fingerprintResult{
-		"a": {{Time: time.Now(), Status: "completed", Attribution: fingerprintAttribution{Status: "substitution"}}},
-		"b": {{Time: time.Now(), Status: "completed", Attribution: fingerprintAttribution{Status: "ambiguous"}}},
-	}
-	if _, verdicts := report("fingerprint"); verdicts != "a.json=true b.json=null" {
-		t.Fatalf("fingerprint: %s", verdicts)
-	}
 }
