@@ -112,7 +112,7 @@ function page() {
     );
 }
 const root = (mode) =>
-  `<!doctype html><html data-theme-mode="${mode}" style="--bg:${mode === "dark" ? "#121214" : "#fff"};--fg:${mode === "dark" ? "#f4f4f6" : "#1c1c1e"};--font-ui:ui-monospace,monospace"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:var(--bg)}nav{display:flex;gap:16px;align-items:center;padding:12px 24px;color:var(--fg);font:12px monospace;border-bottom:1px solid #71717a}iframe{border:0;width:100%;height:calc(100dvh - 46px)}</style><nav>OH MY CPA / 插件 / Codex 降智测试 <span style="opacity:.5">本地合成数据</span><button onclick="document.documentElement.dataset.themeMode=document.documentElement.dataset.themeMode==='dark'?'light':'dark';document.documentElement.style.setProperty('--bg',document.documentElement.dataset.themeMode==='dark'?'#121214':'#fff');document.documentElement.style.setProperty('--fg',document.documentElement.dataset.themeMode==='dark'?'#f4f4f6':'#1c1c1e')">切换主题</button><button onclick="document.documentElement.style.setProperty('--accent','#0f766e');document.documentElement.style.setProperty('--accent-hover','#0b5f59');document.documentElement.style.setProperty('--accent-active','#084c47')">自定义绿色</button></nav><iframe title="OMC theme shell" src="/shell?mode=${mode}"></iframe></html>`;
+  `<!doctype html><html data-theme-mode="${mode}" style="--bg:${mode === "dark" ? "#121214" : "#fff"};--fg:${mode === "dark" ? "#f4f4f6" : "#1c1c1e"};--font-ui:ui-monospace,monospace"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;background:var(--bg)}nav{display:flex;gap:16px;align-items:center;padding:12px 24px;color:var(--fg);font:12px monospace;border-bottom:1px solid #71717a}iframe{border:0;width:100%;height:calc(100dvh - 46px)}</style><nav>OH MY CPA / 插件 / 降智测试 <span style="opacity:.5">本地合成数据</span><button onclick="document.documentElement.dataset.themeMode=document.documentElement.dataset.themeMode==='dark'?'light':'dark';document.documentElement.style.setProperty('--bg',document.documentElement.dataset.themeMode==='dark'?'#121214':'#fff');document.documentElement.style.setProperty('--fg',document.documentElement.dataset.themeMode==='dark'?'#f4f4f6':'#1c1c1e')">切换主题</button><button onclick="document.documentElement.style.setProperty('--accent','#0f766e');document.documentElement.style.setProperty('--accent-hover','#0b5f59');document.documentElement.style.setProperty('--accent-active','#084c47')">自定义绿色</button></nav><iframe title="OMC theme shell" src="/shell?mode=${mode}"></iframe></html>`;
 const send = (res, data, status = 200) => {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(data));
@@ -138,7 +138,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/shell") {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     return res.end(
-      `<!doctype html><html data-theme="${url.searchParams.get("mode") === "light" ? "light" : "dark"}"><style>html,body,iframe{margin:0;border:0;width:100%;height:100%;display:block}</style><iframe title="Codex 降智测试" src="/ui"></iframe></html>`,
+      `<!doctype html><html data-theme="${url.searchParams.get("mode") === "light" ? "light" : "dark"}"><style>html,body,iframe{margin:0;border:0;width:100%;height:100%;display:block}</style><iframe title="降智测试" src="/ui"></iframe></html>`,
     );
   }
   if (url.pathname === "/") {

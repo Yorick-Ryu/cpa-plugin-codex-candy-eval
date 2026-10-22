@@ -24,7 +24,7 @@
 
 ---
 
-# Codex 降智测试（CLIProxyAPI 插件）
+# 降智测试（CLIProxyAPI 插件）
 
 在 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 管理面板中用**糖果题**、**指纹检测**和**画鹈鹕**测试 Codex 凭证。
 
@@ -38,7 +38,7 @@
 
 ### 插件商店
 
-CPA 管理面板（CPAMC 或 CPAMP）插件商店搜索安装 `omcpa-codex-candy-eval`，并在面板左侧打开「Codex 降智测试」。
+CPA 管理面板（CPAMC 或 CPAMP）插件商店搜索安装 `omcpa-codex-candy-eval`，并在面板左侧打开「降智测试」。
 
 ### 人工安装
 
@@ -99,7 +99,7 @@ plugins:
 也可以补全下面的提示词，发给 Codex、Claude Code 等 AI 助手，让它帮你部署：
 
 ```text
-请按照 https://raw.githubusercontent.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/main/docs/inspection.md 中的教程，在这台机器上部署 Codex 降智测试插件的定时巡检。
+请按照 https://raw.githubusercontent.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/main/docs/inspection.md 中的教程，在这台机器上部署降智测试插件的定时巡检。
 
 我的配置（没写的项保持脚本默认值）：
 - CPA 地址：

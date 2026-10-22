@@ -841,7 +841,7 @@ function EvaluationApp() {
   return (
     <main className="evaluation-page">
       <div className="standalone-heading">
-        <h1>Codex 降智测试</h1>
+        <h1>降智测试</h1>
         <span className="secondary">
           检查推理表现、模型身份与代码生成能力。
         </span>

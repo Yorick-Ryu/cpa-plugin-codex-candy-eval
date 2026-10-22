@@ -15,7 +15,7 @@ import (
 
 const (
 	pluginID       = "omcpa-codex-candy-eval"
-	pluginVersion  = "0.4.0-omc.3"
+	pluginVersion  = "0.4.0-omc.4"
 	ABIVersion     = 1
 	schemaVersion  = 6
 	managementBase = "/v0/management/plugins/" + pluginID
@@ -161,7 +161,7 @@ func HandleMethod(method string, request []byte) (response []byte) {
 				{"Method": http.MethodGet, "Path": managementBase + "/inspection", "Description": "View the latest inspection of a test"},
 			},
 			"resources": []map[string]string{
-				{"Path": uiPath, "Menu": "Codex 降智测试 · OMC", "Description": "通过糖果题、指纹检测和画鹈鹕检测 CPA 凭证"},
+				{"Path": uiPath, "Menu": "降智测试", "Description": "通过糖果题、指纹检测和画鹈鹕检测 CPA 凭证"},
 			},
 		})
 	case "management.handle":
