@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 
-id=cpa-codex-candy-eval
+id=omcpa-codex-candy-eval
 service=cli-proxy-api
 version=$(sed -n 's/^[[:space:]]*pluginVersion[[:space:]]*= "\(.*\)"/\1/p' internal/plugin/plugin.go)
 target=$id-v$version.so
@@ -15,7 +15,7 @@ stamp=$(date -u +%Y%m%d-%H%M%S)
 echo "==> Building $target"
 mkdir -p dist
 GOOS=linux GOARCH=amd64 CGO_ENABLED=1 CC='zig cc -target x86_64-linux-gnu.2.17' \
-  go build -trimpath -ldflags='-s -w' -tags cshared -buildmode=c-shared -o "dist/$id.so" "./cmd/$id"
+  go build -trimpath -ldflags='-s -w' -tags cshared -buildmode=c-shared -o "dist/$id.so" "./cmd/cpa-codex-candy-eval"
 sum=$(shasum -a 256 "dist/$id.so" | cut -d' ' -f1)
 echo "sha256 $sum"
 

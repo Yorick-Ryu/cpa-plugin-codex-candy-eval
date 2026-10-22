@@ -17,7 +17,7 @@ const legacy = {
       resolveDir: dir,
       contents: `
     import {api, AuthError} from '${path.join(dir, "src/api.ts")}';
-    const BASE='/v0/management/plugins/cpa-codex-candy-eval';
+    const BASE='/v0/management/plugins/omcpa-codex-candy-eval';
     const HIDDEN_MODEL = id => id.toLowerCase().includes('image');
     let key='', credentials=[];
     const stored = name => {try{return JSON.parse(localStorage.getItem(name))}catch{return null}};

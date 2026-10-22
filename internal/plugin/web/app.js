@@ -1,7 +1,7 @@
 "use strict";
-const BASE = "/v0/management/plugins/cpa-codex-candy-eval";
-const KEY_STORE = "cpa-codex-candy-eval.key";
-const VIEW_STORE = "cpa-codex-candy-eval.view.v1.";
+const BASE = "/v0/management/plugins/omcpa-codex-candy-eval";
+const KEY_STORE = "omcpa-codex-candy-eval.key";
+const VIEW_STORE = "omcpa-codex-candy-eval.view.v1.";
 const DEFAULT_MODEL = "gpt-6.1-sol";
 const DEFAULT_EFFORT = "low";
 const DEFAULT_EFFORTS = ["none", "low", "medium", "high", "xhigh", "max"];

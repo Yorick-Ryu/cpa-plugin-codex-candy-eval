@@ -26,7 +26,7 @@ NTFY_PASSWORD = ""                   # ntfy 密码或访问令牌
 BARK_URL = ""                        # Bark 推送地址；留空不通知
 MAX_WAIT_MINUTES = 30                # 每轮测试完成的等待上限（分钟）
 
-PLUGIN = "/plugins/cpa-codex-candy-eval"
+PLUGIN = "/plugins/omcpa-codex-candy-eval"
 
 
 def api(method, path, body=None):

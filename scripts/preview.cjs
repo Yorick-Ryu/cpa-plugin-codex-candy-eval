@@ -103,12 +103,12 @@ function page() {
         read("react/app.css"),
     )
     .replace("/*REACT_CONFIG*/{}", () => JSON.stringify(config))
-    .replace("<!--PLUGIN_VERSION-->", "0.4.0-omc.1")
+    .replace("<!--PLUGIN_VERSION-->", "0.4.0-omc.3")
     .replace("<!--CANDY_PROMPT-->", () => prompt("candy.go"))
     .replace("<!--PELICAN_PROMPT-->", () => prompt("pelican.go"))
     .replace(
       "<script>window.CANDY_CONFIG",
-      '<script>sessionStorage.setItem("cpa-codex-candy-eval.key","synthetic-preview-management");</script><script>window.CANDY_CONFIG',
+      '<script>sessionStorage.setItem("omcpa-codex-candy-eval.key","synthetic-preview-management");</script><script>window.CANDY_CONFIG',
     );
 }
 const root = (mode) =>
@@ -159,7 +159,7 @@ const server = http.createServer(async (req, res) => {
     if (a) a.disabled = body.disabled;
     return send(res, { status: "ok" });
   }
-  const base = "/v0/management/plugins/cpa-codex-candy-eval";
+  const base = "/v0/management/plugins/omcpa-codex-candy-eval";
   if (url.pathname === base + "/credentials/sync")
     return send(res, { ok: true });
   if (url.pathname === base + "/state")

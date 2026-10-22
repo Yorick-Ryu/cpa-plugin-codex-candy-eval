@@ -46,6 +46,43 @@ func setupTest(t *testing.T) {
 	}
 }
 
+func TestOMCEditionIdentityIsIndependent(t *testing.T) {
+	const wantID = "omcpa-codex-candy-eval"
+	if statePath != "plugins/"+wantID+"-state.json" {
+		t.Fatalf("state path must be private to the OMC edition: %q", statePath)
+	}
+	setupTest(t)
+	var registration struct {
+		Result struct {
+			Metadata struct{ Name string } `json:"metadata"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(HandleMethod("plugin.register", nil), &registration); err != nil || registration.Result.Metadata.Name != wantID {
+		t.Fatalf("registration identity = %q, error = %v", registration.Result.Metadata.Name, err)
+	}
+	var management struct {
+		Result struct {
+			Routes    []struct{ Path string } `json:"routes"`
+			Resources []struct{ Path string } `json:"resources"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(HandleMethod("management.register", nil), &management); err != nil {
+		t.Fatal(err)
+	}
+	for _, route := range management.Result.Routes {
+		if !strings.HasPrefix(route.Path, "/v0/management/plugins/"+wantID+"/") {
+			t.Errorf("route uses another plugin's namespace: %q", route.Path)
+		}
+	}
+	if len(management.Result.Resources) != 1 || management.Result.Resources[0].Path != "/v0/resource/plugins/"+wantID+"/ui" {
+		t.Fatalf("resources = %+v", management.Result.Resources)
+	}
+	oldRoute := handleManagement(managementRequest{Method: http.MethodGet, Path: "/v0/management/plugins/cpa-codex-candy-eval/state"})
+	if oldRoute.StatusCode != http.StatusNotFound {
+		t.Fatalf("upstream namespace must not be handled: %d", oldRoute.StatusCode)
+	}
+}
+
 func TestHasStandalone21(t *testing.T) {
 	for text, want := range map[string]bool{
 		"21": true, "最少取出**21**个": true, "答案：21。": true,

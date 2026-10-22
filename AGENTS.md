@@ -47,8 +47,8 @@ mkdir -p dist
 GOOS=linux GOARCH=amd64 CGO_ENABLED=1 \
   CC='zig cc -target x86_64-linux-gnu.2.17' \
   go build -trimpath -ldflags='-s -w' -tags cshared -buildmode=c-shared \
-  -o dist/cpa-codex-candy-eval.so ./cmd/cpa-codex-candy-eval
-file dist/cpa-codex-candy-eval.so
+  -o dist/omcpa-codex-candy-eval.so ./cmd/cpa-codex-candy-eval
+file dist/omcpa-codex-candy-eval.so
 ```
 
 Expect an ELF x86-64 shared library. The glibc 2.17 target matches the release
@@ -75,8 +75,8 @@ without routine reconfirmation. Documentation and local setup changes are exempt
 
 1. Run `scripts/deploy.sh`. It builds the Linux/amd64 library, uploads it to
    `CPA_REMOTE_PLUGIN_DIR` with a checksum check, moves existing
-   `cpa-codex-candy-eval-v*.so` files to `plugin-backups/` beside the remote
-   `plugins/` directory, installs `cpa-codex-candy-eval-v<pluginVersion>.so`,
+   `omcpa-codex-candy-eval-v*.so` files to `plugin-backups/` beside the remote
+   `plugins/` directory, installs `omcpa-codex-candy-eval-v<pluginVersion>.so`,
    restarts only the `cli-proxy-api` Compose service, and fails unless the
    management API reports the new file registered and enabled. Plugin state and
    history are untouched. Inspect the server by hand only when the script fails

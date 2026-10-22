@@ -24,7 +24,7 @@ const { server, page, auths, detection } = require("./preview.cjs");
     virtualConsole,
     beforeParse(window) {
       window.TextEncoder = TextEncoder;
-      window.localStorage.setItem("cpa-codex-candy-eval.omc.v2.settings", JSON.stringify({candy:{model:"gpt-6.1-sol",effort:"low",runs:1},pelican:{model:"gpt-6.1-sol",effort:"low"}}));
+      window.localStorage.setItem("omcpa-codex-candy-eval.omc.v2.settings", JSON.stringify({candy:{model:"gpt-6.1-sol",effort:"low",runs:1},pelican:{model:"gpt-6.1-sol",effort:"low"}}));
       window.TextDecoder = TextDecoder;
       window.AbortController = AbortController;
       window.AbortSignal = AbortSignal;

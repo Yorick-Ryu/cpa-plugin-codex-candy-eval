@@ -1,7 +1,11 @@
 # OMC component UI
 
-The evaluation runners, plugin ID, management routes and stored history follow
-upstream v0.4.0. The new fingerprint detection replaces the old fingerprint and
+The evaluation runners and history format follow upstream v0.4.0. The OMC
+edition registers as `omcpa-codex-candy-eval`, with its own management/resource
+routes, `plugins/omcpa-codex-candy-eval-state.json`, and browser storage namespace.
+It can be loaded alongside the upstream `cpa-codex-candy-eval` plugin. Existing
+installations using the old ID keep their state file; migrating history is an
+explicit copy while both plugins are idle, never an automatic shared-file fallback. The new fingerprint detection replaces the old fingerprint and
 ModelTrace tests; back up state before upgrading because upstream drops those
 retired histories. Candy and pelican histories remain compatible. `web/src/main.tsx` owns the React
 interface; the build reuses the original credential identities and model-catalog

@@ -3,7 +3,7 @@
 set -eu
 
 repo="Yorick-Ryu/cpa-plugin-codex-candy-eval"
-name="cpa-codex-candy-eval"
+name="omcpa-codex-candy-eval"
 
 fail() {
   echo "$name: $*" >&2

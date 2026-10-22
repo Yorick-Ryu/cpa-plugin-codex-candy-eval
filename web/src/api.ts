@@ -1,5 +1,5 @@
-export const BASE = "/v0/management/plugins/cpa-codex-candy-eval";
-export const KEY_STORE = "cpa-codex-candy-eval.key";
+export const BASE = "/v0/management/plugins/omcpa-codex-candy-eval";
+export const KEY_STORE = "omcpa-codex-candy-eval.key";
 let sessionKey = "";
 export const setSessionKey = (value: string) => {
   sessionKey = value;

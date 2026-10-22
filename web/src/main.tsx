@@ -82,7 +82,7 @@ const config = window.CANDY_CONFIG;
 const pref = (name: string, fallback: any) => {
   try {
     const v = JSON.parse(
-      localStorage.getItem("cpa-codex-candy-eval.omc.v2." + name) || "null",
+      localStorage.getItem("omcpa-codex-candy-eval.omc.v2." + name) || "null",
     );
     if (name === "settings" && v && typeof v === "object")
       return Object.fromEntries(Object.keys(tests).map(t => [t, {...fallback[t], ...v[t]}]));
@@ -99,7 +99,7 @@ function usePreference<T>(name: string, fallback: T): [T, (v: T) => void] {
       setValue(v);
       try {
         localStorage.setItem(
-          "cpa-codex-candy-eval.omc.v2." + name,
+          "omcpa-codex-candy-eval.omc.v2." + name,
           JSON.stringify(v),
         );
       } catch {}

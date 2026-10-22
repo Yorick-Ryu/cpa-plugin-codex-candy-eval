@@ -106,8 +106,8 @@ python3 ~/cpa-inspection/inspection.py
 
 以下请求使用 CPA 管理认证：`Authorization: Bearer <管理密钥>`，路径前缀为 `<CPA 地址>/v0/management`。
 
-- `GET /plugins/cpa-codex-candy-eval/state`：返回 `auths`，包含凭证 `id`、`name`、`email`、`source`、`priority`、`plan_type`，以及糖果测试的 `running` 进度和 `results` 历史。
-- `POST /plugins/cpa-codex-candy-eval/run`：按凭证 ID 发起糖果测试，返回 `started`。首测 `runs=1`，复测 `runs=2`。
+- `GET /plugins/omcpa-codex-candy-eval/state`：返回 `auths`，包含凭证 `id`、`name`、`email`、`source`、`priority`、`plan_type`，以及糖果测试的 `running` 进度和 `results` 历史。
+- `POST /plugins/omcpa-codex-candy-eval/run`：按凭证 ID 发起糖果测试，返回 `started`。首测 `runs=1`，复测 `runs=2`。
 - `PATCH /auth-files/fields`：修改认证文件的 priority。
 
 糖果测试请求示例：

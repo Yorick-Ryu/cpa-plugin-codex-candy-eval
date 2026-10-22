@@ -1,6 +1,6 @@
 "use strict";
 
-const CATALOG_STORE = "cpa-codex-candy-eval.catalog.v1";
+const CATALOG_STORE = "omcpa-codex-candy-eval.catalog.v1";
 const MODEL_CATALOG_TTL = 60000;
 const CREDENTIAL_CATALOG_TTL = 5 * 60000;
 const CATALOG_RETRY_DELAY = 15000;

@@ -6,7 +6,9 @@
 - 直接复用 OMC 的 `createThemeConfig`、`StatTiles` 和 `StatusLabel` 源码，保留其 MIT 许可。
 - 自动跟随 OMC 的深浅色、自定义配色和字体；独立页面跟随系统主题。
 - 同步上游 v0.4.0 的糖果题、指纹检测、画鹈鹕三种测试，保留当前筛选范围的凭证概览。旧指纹与 ModelTrace 已移除，升级前请备份历史文件；糖果题和鹈鹕记录仍兼容。
-- 插件 ID 保持 `cpa-codex-candy-eval`，用于替换原插件，不能与原版同时加载。
+- 插件 ID 为 `omcpa-codex-candy-eval`，与原版 `cpa-codex-candy-eval` 独立，可同时加载；接口、测试记录和浏览器偏好分别保存。
+
+从旧 OMC 版本升级：自 `v0.4.0-omc.3` 起使用独立 ID。安装新插件后，旧版配置和历史文件不会被自动修改。需要迁移记录时，先确认两边都没有运行测试，再将 `plugins/cpa-codex-candy-eval-state.json` 复制到 `plugins/omcpa-codex-candy-eval-state.json`，然后加载新插件；已有新历史时不要覆盖。定时巡检脚本也需将插件接口改为新 ID。
 
 验证：`npm ci --prefix web`、`npm --prefix web run check`、`npm --prefix web run build`、`node scripts/test-react.mjs`、`node scripts/test-components.cjs`、`node scripts/test-theme.cjs`、`go vet ./...`、`go test -race ./...`。
 
@@ -36,7 +38,7 @@
 
 ### 插件商店
 
-CPA 管理面板（CPAMC 或 CPAMP）插件商店搜索安装 `cpa-codex-candy-eval`，并在面板左侧打开「Codex 降智测试」。
+CPA 管理面板（CPAMC 或 CPAMP）插件商店搜索安装 `omcpa-codex-candy-eval`，并在面板左侧打开「Codex 降智测试」。
 
 ### 人工安装
 
@@ -52,7 +54,7 @@ Windows 请先停止 CPA，再在 PowerShell 中运行：
 irm https://raw.githubusercontent.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/main/install.ps1 | iex
 ```
 
-也可以从 [Releases](https://github.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/releases/latest) 下载对应平台的压缩包，解压后将插件文件重命名为 `cpa-codex-candy-eval-v<版本号>.<扩展名>`，放入对应的 `plugins/<系统>/<架构>/` 目录。
+也可以从 [Releases](https://github.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/releases/latest) 下载对应平台的压缩包，解压后将插件文件重命名为 `omcpa-codex-candy-eval-v<版本号>.<扩展名>`，放入对应的 `plugins/<系统>/<架构>/` 目录。
 
 在 CPA 的 `config.yaml` 中启用插件：
 
@@ -61,7 +63,7 @@ plugins:
   enabled: true
   dir: "plugins"
   configs:
-    cpa-codex-candy-eval:
+    omcpa-codex-candy-eval:
       enabled: true
 ```
 

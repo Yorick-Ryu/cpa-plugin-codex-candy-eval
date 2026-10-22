@@ -3,7 +3,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 $repo = "Yorick-Ryu/cpa-plugin-codex-candy-eval"
-$name = "cpa-codex-candy-eval"
+$name = "omcpa-codex-candy-eval"
 
 if ($env:PROCESSOR_ARCHITECTURE -ne "AMD64") {
     throw "${name}: only Windows x64 is supported"
