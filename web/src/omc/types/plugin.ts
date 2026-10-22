@@ -1,0 +1,165 @@
+/** A setting a plugin declares in its manifest; the value lives in the plugin's settings document. */
+export interface PluginConfigField {
+  name: string;
+  /** `string`, `number`, `integer`, `boolean`, `enum`, `array` or `object`; anything else is edited as text. */
+  type: string;
+  enum_values?: string[];
+  description?: string;
+  /** The value the plugin uses while the key is unset; absent when the manifest declares none. */
+  default?: unknown;
+}
+
+export interface PluginMetadata {
+  name?: string;
+  version?: string;
+  author?: string;
+  /** Inline artwork only: the server fetches and inlines a declared logo, or drops it. */
+  logo?: string;
+}
+
+/** A page a plugin serves itself, shown inside the console (ADR 0060). */
+export interface PluginPage {
+  /** CPA's own resource path, `/v0/resource/plugins/<id>/...`; the console reads it through its plugin host. */
+  path: string;
+  label: string;
+  description?: string;
+}
+
+export interface PluginItem {
+  id: string;
+  path?: string;
+  configured: boolean;
+  registered: boolean;
+  enabled: boolean;
+  /** Enabled here, registered with the running host, and the plugin system switched on. */
+  effective_enabled: boolean;
+  /** CPA's legacy name for an auth-provider capability, not proof of interactive OAuth login. */
+  supports_oauth?: boolean;
+  oauth_provider?: string;
+  supports_quota?: boolean;
+  quota_provider?: string;
+  /** Present only while the plugin is running: a stopped plugin serves nothing. */
+  pages?: PluginPage[];
+  logo?: string;
+  repository_url?: string;
+  config_fields: PluginConfigField[];
+  metadata?: PluginMetadata;
+}
+
+export interface PluginsResponse {
+  plugins_enabled: boolean;
+  plugins_dir: string;
+  plugins: PluginItem[];
+  total: number;
+}
+
+export interface PluginConfigResponse {
+  id: string;
+  config: Record<string, unknown>;
+}
+
+export interface PluginDeleteResponse {
+  status: string;
+  id: string;
+  file_deleted: boolean;
+  configured_removed: boolean;
+  restart_required: boolean;
+}
+
+export interface PluginStoreSource {
+  id: string;
+  name: string;
+  url: string;
+  is_official: boolean;
+}
+
+export interface PluginStoreSourceError {
+  source_id: string;
+  source_name: string;
+  source_url: string;
+  message: string;
+}
+
+export interface StorePluginItem {
+  /** Unique across registries: two registries may list the same plugin id. */
+  store_id: string;
+  source_id: string;
+  source_name: string;
+  id: string;
+  name: string;
+  description?: string;
+  author?: string;
+  version?: string;
+  repository_url?: string;
+  homepage?: string;
+  license?: string;
+  tags: string[];
+  logo?: string;
+  install_type?: string;
+  platforms: string[];
+  /** From the built-in registry and a first-party repository; decided by the server. */
+  is_official: boolean;
+  /** From Oh My CPA's own registry, which the console keeps configured; also decided by the server. */
+  is_omc: boolean;
+  auth_required: boolean;
+  auth_configured: boolean;
+  installed: boolean;
+  installed_version?: string;
+  /** `matched` when this registry supplied the installed copy, `different` when another one did. */
+  install_source_status?: string;
+  effective_enabled: boolean;
+  update_available: boolean;
+}
+
+export interface PluginStoreResponse {
+  plugins_enabled: boolean;
+  plugins_dir: string;
+  sources: PluginStoreSource[];
+  source_errors: PluginStoreSourceError[];
+  plugins: StorePluginItem[];
+  total: number;
+}
+
+export interface PluginInstallResponse {
+  status: string;
+  id: string;
+  version?: string;
+  source_name?: string;
+  plugins_enabled: boolean;
+  restart_required: boolean;
+}
+
+export type PluginStoreAuthType = 'none' | 'bearer' | 'github-token' | 'basic' | 'header';
+export type PluginStoreAuthTarget = 'registry' | 'metadata' | 'artifact';
+
+/** A store authentication rule. It names environment variables; it never holds a secret. */
+export interface PluginStoreAuthRule {
+  match: string;
+  apply_to: PluginStoreAuthTarget[];
+  type: PluginStoreAuthType;
+  token_env?: string;
+  username_env?: string;
+  password_env?: string;
+  header_name?: string;
+  header_value_env?: string;
+  allow_insecure: boolean;
+}
+
+export interface PluginSettings {
+  revision: string;
+  enabled: boolean;
+  dir: string;
+  store_sources: string[];
+  store_auth: PluginStoreAuthRule[];
+  /** The registry Oh My CPA manages itself; it is not an entry of `store_sources`. */
+  omc_source_url: string;
+  omc_source_enabled: boolean;
+}
+
+/** The fields a save owns; the managed source's address and switch are the server's. */
+export type PluginSettingsUpdate = Pick<PluginSettings, 'revision' | 'enabled' | 'store_sources' | 'store_auth'>;
+
+/** The name a plugin is called by in the console: its registered name, then its id. */
+export function pluginDisplayName(plugin: { id: string; metadata?: { name?: string } }): string {
+  return plugin.metadata?.name?.trim() || plugin.id;
+}

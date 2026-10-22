@@ -1,0 +1,150 @@
+/* Shared OMC component presentation, unchanged from upstream 8a887132. */
+/* Static surfaces are flat: a card, a table and the layout are a fill and a hairline. */
+.ant-layout, .ant-card, .ant-drawer-section {
+  box-shadow: none !important;
+}
+/* Floating layers lift off the page (design.md §4). A layer the reader summoned carries a soft
+   shadow and a hairline: the shadow says "above", the hairline keeps its edge legible where the
+   shadow has nothing to fall on - a light menu over a light page, a dark one over a dark page. */
+.ant-popover-container, .ant-dropdown-menu, .ant-select-dropdown,
+.ant-picker-dropdown .ant-picker-panel-container, .ant-notification-notice {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-float) !important;
+}
+.ant-modal-container {
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-overlay) !important;
+}
+/* The mask dims the page rather than hiding it: the dialog is a question about what is behind it. */
+.ant-modal-mask, .ant-drawer-mask { background: var(--overlay-mask) !important; }
+/* The date panel needs the same fill step as the popover, dropdown and select
+   panels above; antd exposes no component token for it. */
+.ant-picker-dropdown .ant-picker-panel-container {
+  background: var(--elevated);
+}
+/* ── entrances: fade and settle ─────────────────────────────────────────────
+   antd zooms a panel in from 80% (a dialog from 20%, out of the pointer) and stretches a menu
+   down from 80% of its height. Both read as the panel flying in. Here a panel fades in while
+   settling the last few percent toward its origin, a menu also drops the last 4px toward its
+   control, and a dialog rises 8px into place: the reader sees the result arrive, not travel.
+   Opacity and transform only, per §7 rule 1. */
+.ant-zoom-big-enter.ant-zoom-big-enter-active, .ant-zoom-big-appear.ant-zoom-big-appear-active,
+.ant-zoom-big-fast-enter.ant-zoom-big-fast-enter-active, .ant-zoom-big-fast-appear.ant-zoom-big-fast-appear-active {
+  animation-name: omc-float-in !important;
+  animation-timing-function: var(--ease-out) !important;
+}
+.ant-slide-up-enter.ant-slide-up-enter-active, .ant-slide-up-appear.ant-slide-up-appear-active {
+  animation-name: omc-drop-in-below !important;
+  animation-timing-function: var(--ease-out) !important;
+}
+.ant-slide-down-enter.ant-slide-down-enter-active, .ant-slide-down-appear.ant-slide-down-appear-active {
+  animation-name: omc-drop-in-above !important;
+  animation-timing-function: var(--ease-out) !important;
+}
+.ant-zoom-big-leave.ant-zoom-big-leave-active, .ant-zoom-big-fast-leave.ant-zoom-big-fast-leave-active,
+.ant-slide-up-leave.ant-slide-up-leave-active, .ant-slide-down-leave.ant-slide-down-leave-active {
+  animation-name: omc-float-out !important;
+  animation-duration: var(--motion-fast) !important;
+  animation-timing-function: var(--ease-standard) !important;
+}
+.ant-popover,
+.ant-dropdown,
+.ant-select-dropdown,
+.ant-picker-dropdown {
+  animation-duration: var(--motion-float) !important;
+}
+.ant-tooltip { animation-duration: var(--motion-fast) !important; }
+.ant-modal.ant-zoom-enter.ant-zoom-enter-active, .ant-modal.ant-zoom-appear.ant-zoom-appear-active {
+  animation-name: omc-dialog-in !important;
+  animation-duration: var(--motion-slow) !important;
+  animation-timing-function: var(--ease-out) !important;
+}
+.ant-modal.ant-zoom-leave.ant-zoom-leave-active {
+  animation-name: omc-float-out !important;
+  animation-duration: var(--motion-base) !important;
+  animation-timing-function: var(--ease-standard) !important;
+}
+@keyframes omc-float-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes omc-drop-in-below {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes omc-drop-in-above {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes omc-float-out {
+  from { opacity: 1; }
+  to { opacity: 0; transform: scale(0.98); }
+}
+@keyframes omc-fade-in {
+  from { opacity: 0; }
+}
+@keyframes omc-fade-out {
+  to { opacity: 0; }
+}
+@keyframes omc-dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+/* A card is drawn on the panel's own ground and enclosed by its hairline: grouping comes from the
+   enclosure, not from a second fill, so a page of cards reads as one sheet with sections on it. */
+.ant-card, .ant-table-wrapper .ant-table, .ant-drawer-section {
+  background: var(--bg);
+}
+.ant-modal-container { background: var(--elevated); }
+/* Viewport dimensions land immediately; only the sheet's position slides. */
+.ant-drawer .ant-drawer-content-wrapper {
+  transition-property: transform !important;
+}
+/* A sheet slides opaque, so the page below cannot show through its content. */
+.ant-drawer [class*='-panel-motion-'] {
+  opacity: 1 !important;
+}
+.ant-btn, .ant-input, .ant-select, .ant-table, .ant-tag, .ant-menu { font-family: inherit; }
+/* A dashed button is an invitation to add the next item, drawn as the outline of the slot it will
+   fill - so it keeps its dashed hairline where every other secondary button is a fill. */
+/* A press answers the finger before the action does: the control gives a little under it and
+   springs back on release, so a click is felt even when what it starts takes a moment. */
+.ant-btn:not(:disabled):active { transform: scale(0.97); }
+.ant-btn-variant-dashed:not(:disabled) { background: transparent !important; border-color: var(--border) !important; }
+.ant-btn-variant-dashed:not(:disabled):hover { border-color: var(--muted) !important; background: color-mix(in srgb, var(--fg) 4%, transparent) !important; }
+.ant-typography, h1, h2, h3, h4 { font-family: inherit; }
+.ant-divider, .ant-tabs-top > .ant-tabs-nav::before { border-color: var(--border) !important; }
+/* ── console chrome: bend antd away from its admin-template defaults ────── */
+.ant-card .ant-card-body { padding: 20px; }
+.ant-form-item .ant-form-item-label > label { font-size: var(--text-md); color: var(--muted); letter-spacing: .04em; }
+.ant-table-wrapper .ant-table-thead > tr > th {
+  /* A header names its column in one line: a squeezed column wraps its cells, never its name,
+     which is how "前缀" came to read one glyph per line. The strip is the OAuth list's header,
+     so every list in the console names its columns the same way. */
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--muted) !important;
+  background: var(--surface) !important;
+  border-bottom: 1px solid var(--border-soft) !important;
+}
+.ant-table-wrapper .ant-table-thead > tr > th::before { display: none; }
+.ant-drawer-title, .ant-modal-title { font-size: var(--text-lg); font-weight: 600; }
+.ant-drawer-header { border-bottom: 1px solid var(--border); }
+.ant-drawer-footer { border-top: 1px solid var(--border); }
+.ant-modal-header, .ant-modal-footer { border: 0 !important; }
+.ant-drawer-right .ant-drawer-section { border-left: 1px solid var(--border); }
+.ant-drawer-left .ant-drawer-section { border-right: 1px solid var(--border); }
+/* On a desktop a side sheet floats like the page panel it covers: inset from the window's edges,
+   rounded, and lifted by the overlay shadow, so it reads as a layer over the work rather than as
+   a second column bolted onto it. A phone's sheet stays edge to edge (§8). */
+@media (min-width: 901px) {
+  .ant-drawer-right > .ant-drawer-content-wrapper { top: 8px; bottom: 8px; right: 8px; }
+  .ant-drawer-right .ant-drawer-section {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-overlay) !important;
+  }
+}
+.ant-drawer-top .ant-drawer-section { border-bottom: 1px solid var(--border); }
+.ant-drawer-bottom .ant-drawer-section { border-top: 1px solid var(--border); }

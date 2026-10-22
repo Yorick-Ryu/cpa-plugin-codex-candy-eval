@@ -1,3 +1,4 @@
+import "./omc/fonts.css";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -16,7 +17,6 @@ import {
   Select,
   Space,
   Spin,
-  Switch,
   Table,
   Tabs,
   Tag,
@@ -35,6 +35,9 @@ import {
   ExternalLink,
   Square,
 } from "lucide-react";
+import { Switch } from "./omc/common/Switch";
+import { ProviderFilterTabs } from "./omc/components/common/ProviderFilterTabs";
+import { ProviderBrandIcon } from "./omc/common/ProviderBrandIcon";
 import { StatTiles } from "./omc/common/StatTiles";
 import { StatusLabel } from "./omc/common/StatusLabel";
 import { useOmcTheme } from "./theme";
@@ -60,8 +63,6 @@ import {
 import {
   available,
   busy,
-  credentialType,
-  typeLabel,
   provider,
   tests,
   progress,
@@ -76,6 +77,7 @@ import {
 import { Answer, RecordDetail, RecordMeta } from "./RecordDetail";
 import { PelicanPreview } from "./PelicanPreview";
 import "./style.css";
+import "./omc/appearance.css";
 const config = window.CANDY_CONFIG;
 const pref = (name: string, fallback: any) => {
   try {
@@ -131,7 +133,7 @@ function EvaluationApp() {
   const [test, setTest] = usePreference<Test>("tab", "candy");
   const active: Test = tests[test] ? test : "candy";
   const [masked, setMasked] = usePreference("masked", false);
-  const [type, setType] = usePreference("type", "auth_files:codex");
+  const [type, setType] = usePreference("provider", "all");
   const [plan, setPlan] = usePreference("plan", "all");
   const [enabledOnly, setEnabledOnly] = usePreference("enabledOnly", false);
   const [search, setSearch] = useState("");
@@ -386,7 +388,7 @@ function EvaluationApp() {
     setTile("all");
   };
   const typeFiltered = auths.filter(
-    (a) => type === "all" || credentialType(a) === type,
+    (a) => type === "all" || provider(a) === type,
   );
   const plans = [
     ...new Map(
@@ -506,22 +508,24 @@ function EvaluationApp() {
               className={masked ? "credential-name masked" : "credential-name"}
               ellipsis
             >
-              {a.source === "ai_providers"
-                ? a.base_url?.replace(/^https?:\/\//, "") || "默认地址"
-                : a.email || a.name}
+              {masked
+                ? "••••••••••••"
+                : a.source === "ai_providers"
+                  ? a.base_url?.replace(/^https?:\/\//, "") || "默认地址"
+                  : a.email || a.name}
             </Typography.Text>
           </Tooltip>
           {a.source === "ai_providers" && (
             <span
               className={masked ? "secondary mono masked" : "secondary mono"}
             >
-              {a.name}
+              {masked ? "••••••••" : a.name}
             </span>
           )}
           <Space size={[4, 4]} wrap>
-            <Tag>{provider(a)}</Tag>
+            <Tag><span className="provider-label"><ProviderBrandIcon provider={provider(a)} size={12} />{provider(a)}</span></Tag>
             {a.provider_name && <Tag>{a.provider_name}</Tag>}
-            {credentialPlan(a) && <Tag>{credentialPlan(a)!.label}</Tag>}
+            {credentialPlan(a) && <Tag className="subscription-label">{credentialPlan(a)!.label}</Tag>}
             <span className="secondary mono">P{a.priority ?? 0}</span>
             {a.unavailable && (
               <Tooltip title={unavailableReason(a)}>
@@ -1055,6 +1059,14 @@ function EvaluationApp() {
         )}
       </div>
       <section className="credential-panel">
+        <div className="credential-provider-tabs">
+          <ProviderFilterTabs
+            providers={["all", ...[...new Set(auths.map(provider))].sort()]}
+            counts={Object.fromEntries([["all", auths.length], ...[...new Set(auths.map(provider))].map(value => [value, auths.filter(a => provider(a) === value).length])])}
+            active={type}
+            onChange={value => changeFilter(() => { setType(value); setPlan("all"); })}
+          />
+        </div>
         <div className="credential-toolbar">
           <Space size={12} wrap>
             <strong>凭证</strong>
@@ -1067,23 +1079,6 @@ function EvaluationApp() {
               />
               <span className="secondary">仅启用</span>
             </Space>
-            <Select
-              aria-label="凭证类型"
-              value={type}
-              options={[
-                { value: "all", label: "全部凭证" },
-                ...[...new Set([type, ...auths.map(credentialType)])]
-                  .filter((v) => v !== "all")
-                  .sort()
-                  .map((value) => ({ value, label: typeLabel(value) })),
-              ]}
-              onChange={(v) =>
-                changeFilter(() => {
-                  setType(v);
-                  setPlan("all");
-                })
-              }
-            />
             <Select
               aria-label="订阅类型"
               value={plan}
@@ -1105,11 +1100,14 @@ function EvaluationApp() {
             />
             <Tooltip title={masked ? "取消脱敏" : "脱敏"}>
               <Button
-                type="text"
                 aria-label={masked ? "取消脱敏" : "脱敏"}
-                icon={masked ? <Eye size={15} /> : <EyeOff size={15} />}
+                aria-pressed={masked}
+                className={masked ? "privacy-toggle is-active" : "privacy-toggle"}
+                icon={masked ? <EyeOff size={15} /> : <Eye size={15} />}
                 onClick={() => setMasked(!masked)}
-              />
+              >
+                脱敏
+              </Button>
             </Tooltip>
             <Tooltip title={`清空${tests[active].label}记录`}>
               <Button
@@ -1198,7 +1196,7 @@ function EvaluationApp() {
 function Root() {
   const theme = useOmcTheme();
   return (
-    <ConfigProvider theme={theme} locale={zhCN}>
+    <ConfigProvider theme={theme} locale={zhCN} variant="filled" tag={{ variant: "filled" }} wave={{ disabled: true }} button={{ autoInsertSpace: false }}>
       <AntApp>
         <EvaluationApp />
       </AntApp>

@@ -1,13 +1,13 @@
 /* OMC defaults; the host bridge projects the selected palette over these. */
 :root {
   color-scheme: light;
-  --bg: #ffffff; --surface: #f6f6f8; --elevated: #ffffff;
+  --bg: #ffffff; --surface: #f1f1f3; --elevated: #ffffff;
   --fg: #1c1c1e; --fg-2: #505055; --muted: #787880; --meta: #98989f;
-  --border: #e5e5ea; --border-soft: #f1f1f4; --hover: #f3f3f3;
+  --border: #dcdce1; --border-soft: #ebebee; --hover: #f3f3f3;
   --accent: #005d8f; --accent-hover: #004a73; --accent-active: #023b5d; --accent-on: #ffffff;
   --success: #059669; --warn: #b45309; --danger: #dc2626;
-  --font-ui: "Sarasa Mono SC", "Sarasa UI SC", ui-monospace, SFMono-Regular, Menlo, Consolas, "Microsoft YaHei", monospace;
-  --font-mono: var(--font-ui);
+  --font-ui: "Sarasa Mono SC", "Sarasa UI SC", "Sarasa Term SC", "更纱黑体 SC", "Berkeley Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --font-mono: "Sarasa Mono SC", "Sarasa UI SC", "Sarasa Term SC", "更纱黑体 SC", "Berkeley Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   --page-top: 24px; --page-inline: 24px; --section-gap: 20px;
   --bg-image: none; --ink: var(--fg); --faint: var(--meta); --line: var(--border); --card-line: var(--border);
   --sunken: var(--surface); --field: var(--bg); --control-bg: var(--bg); --control-line: var(--border);
@@ -20,9 +20,32 @@
   --danger-ink: var(--danger); --danger-soft: color-mix(in srgb, var(--danger) 10%, transparent);
   --danger-soft-hover: color-mix(in srgb, var(--danger) 16%, transparent); --danger-line: color-mix(in srgb, var(--danger) 30%, var(--border));
   --warning-ink: var(--warn); --warning-soft: color-mix(in srgb, var(--warn) 10%, transparent); --warning-line: color-mix(in srgb, var(--warn) 30%, var(--border));
-  --radius: 4px; --shadow: none; --float: none; --glass: none;
-  --tip-bg: var(--elevated); --tip-ink: var(--fg-2); --tip-line: var(--border); --tip-shadow: none; --tip-radius: 4px; --tip-padding: 6px 10px;
-  --popover-bg: var(--elevated); --popover-line: var(--border); --popover-shadow: none; --dialog-bg: var(--elevated);
+  --radius: var(--radius-sm); --shadow: none; --float: var(--shadow-float); --glass: none;
+  --tip-bg: var(--elevated); --tip-ink: var(--fg-2); --tip-line: var(--border); --tip-shadow: var(--shadow-float); --tip-radius: var(--radius-md); --tip-padding: 6px 10px;
+  --popover-bg: var(--elevated); --popover-line: var(--border); --popover-shadow: var(--shadow-float); --dialog-bg: var(--elevated);
+  --canvas: #f5f5f5;
+  --hover-inset: #f2f2f2;
+  --selected-inset: #eaedef;
+  --radius-xs: 2px;
+  --radius-check: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-document: 8px;
+  --radius-control: 6px;
+  --radius-surface: 10px;
+  --radius-thread: 12px;
+  --shadow-float: 0 12px 32px -8px rgb(20 20 30 / 0.14), 0 2px 8px rgb(20 20 30 / 0.05);
+  --shadow-overlay: 0 28px 64px -16px rgb(20 20 30 / 0.22), 0 4px 16px rgb(20 20 30 / 0.06);
+  --overlay-mask: rgb(20 20 30 / 0.12);
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-raised: 0 1px 2px rgb(20 20 30 / 0.08), 0 0 0 0.5px rgb(20 20 30 / 0.06);
+  --motion-float: 160ms;
+  --motion-live-text: 900ms;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -31,6 +54,29 @@
   --border: #2c2c30; --border-soft: #212124; --hover: #272729;
   --accent: #00a2fb; --accent-hover: #0579bd; --accent-active: #025e94;
   --success: #10b981; --warn: #f59e0b; --danger: #ef4444;
+  --canvas: #09090a;
+  --hover-inset: var(--bg);
+  --selected-inset: #2e2e37;
+  --radius-xs: 2px;
+  --radius-check: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-document: 8px;
+  --radius-control: 6px;
+  --radius-surface: 10px;
+  --radius-thread: 12px;
+  --shadow-float: 0 12px 32px -8px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.3);
+  --shadow-overlay: 0 28px 64px -16px rgb(0 0 0 / 0.7), 0 4px 16px rgb(0 0 0 / 0.35);
+  --overlay-mask: rgb(0 0 0 / 0.5);
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
+  --motion-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.32), 0 0 0 0.5px rgb(0 0 0 / 0.28);
+  --motion-float: 160ms;
+  --motion-live-text: 900ms;
 }
 :root[data-omc-host] { --page-top: 16px; }
 :root[data-omc-host] .page-heading { display: none; }

@@ -3,7 +3,7 @@
 // No host storage or credentials are read here.
 (() => {
   const root = document.documentElement;
-  const tokens = ["bg", "surface", "elevated", "fg", "fg-2", "muted", "meta", "border", "border-soft", "hover", "accent", "accent-hover", "accent-active", "accent-on", "success", "warn", "danger", "font-ui", "font-mono", "hover-inset", "selected-inset", "tooltip-bg"];
+  const tokens = ["bg", "surface", "elevated", "fg", "fg-2", "muted", "meta", "border", "border-soft", "hover", "accent", "accent-hover", "accent-active", "accent-on", "success", "warn", "danger", "font-ui", "font-mono", "hover-inset", "selected-inset", "tooltip-bg", "canvas", "radius-xs", "radius-sm", "radius-check", "radius-md", "radius-lg", "radius-document", "radius-control", "radius-surface", "radius-thread", "text-2xs", "text-xs", "text-sm", "text-md", "text-base", "text-lg", "text-xl", "motion-fast", "motion-base", "motion-slow", "ease-standard", "ease-enter", "ease-exit", "shadow-float", "shadow-overlay", "overlay-mask", "ease-out", "shadow-raised", "motion-float", "motion-live-text"];
   const ancestors = [];
   let frame = window;
   try {
@@ -22,6 +22,7 @@
       return css.getPropertyValue("--fg").trim() && css.getPropertyValue("--font-ui").trim();
     });
     root.dataset.theme = host?.dataset.themeMode || mode;
+    root.dataset.themeMode = root.dataset.theme;
     root.toggleAttribute("data-omc-host", !!host);
     const css = host?.ownerDocument.defaultView.getComputedStyle(host);
     for (const token of tokens) {

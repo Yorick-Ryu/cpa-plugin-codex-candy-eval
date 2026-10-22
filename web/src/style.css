@@ -5,11 +5,10 @@
   --text-md: 13px;
   --text-base: 14px;
   --text-lg: 16px;
-  --text-xl: 22px;
+  --text-xl: 20px;
   --radius-xs: 2px;
-  --radius-sm: 4px;
-  --motion-fast: 50ms;
-  --motion-base: 100ms;
+  --motion-fast: 120ms;
+  --motion-base: 180ms;
   --hover-inset: var(--surface);
   font-family: var(--font-ui);
   color: var(--fg);
@@ -47,7 +46,7 @@ pre {
   overflow-wrap: anywhere;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   padding: 12px;
   line-height: 1.7;
   max-height: 420px;
@@ -70,7 +69,7 @@ pre {
   gap: 16px;
 }
 h1 {
-  font-size: 22px;
+  font-size: var(--text-xl);
   font-weight: 600;
   margin: 0 0 6px;
 }
@@ -151,10 +150,12 @@ h3 {
 }
 .control-form .ant-form-item {
   margin: 0;
-  min-width: 120px;
+  width: 112px;
+  min-width: 0;
+  flex: 0 0 auto;
 }
 .control-form .ant-form-item:first-child {
-  width: 240px;
+  width: 212px;
 }
 .control-form .ant-form-item-label {
   padding: 0 0 6px;
@@ -168,6 +169,7 @@ h3 {
   width: 100%;
 }
 .control-form .batch-control {
+  width: auto;
   margin-inline-start: auto;
 }
 .test-notes {
@@ -181,7 +183,7 @@ h3 {
 }
 .credential-panel {
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--bg);
 }
@@ -212,7 +214,9 @@ h3 {
 .credential-table .ant-table-container {
   border-radius: 0 !important;
 }
+/* The toolbar owns the panel's top edge; the header is an interior row. */
 .credential-table .ant-table-thead > tr > th {
+  border-radius: 0 !important;
   font-size: 12px;
   font-weight: 500;
 }
@@ -237,8 +241,13 @@ h3 {
   border-color: var(--border);
 }
 .masked {
-  filter: blur(5px);
+  color: var(--muted);
+  letter-spacing: 0.08em;
   user-select: none;
+}
+.privacy-toggle.is-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 .result-cell {
   display: flex;
@@ -337,7 +346,7 @@ h3 {
   gap: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   padding: 14px;
 }
 .detail-stats .ant-statistic-content {
@@ -357,7 +366,7 @@ h3 {
 .pelican-frame {
   display: block;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   background: var(--surface);
   width: 100%;
   aspect-ratio: 4/3;
@@ -392,7 +401,7 @@ h3 {
   font-family: var(--font-mono);
   background: var(--surface);
   padding: 1px 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-md);
 }
 .answer-markdown blockquote {
   margin-inline: 0;
@@ -533,7 +542,7 @@ h3 {
   display: grid;
   place-items: center;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--surface);
 }
@@ -560,4 +569,15 @@ h3 {
 .pelican-thumbnail-open.ant-btn:focus-visible {
   opacity: 1;
   background: var(--hover);
+}
+
+.credential-provider-tabs { padding: 4px 12px 0; }
+.credential-provider-tabs > div { margin-bottom: 0; }
+.provider-label { display: inline-flex; align-items: center; gap: 4px; }
+.credential-cell .subscription-label {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  color: var(--fg-2);
+  border-color: transparent;
+  border-radius: var(--radius-sm);
+  font-weight: 550;
 }
