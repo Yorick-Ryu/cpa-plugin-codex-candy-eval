@@ -63,8 +63,8 @@ func candyRunResponse(body []byte) managementResponse {
 	}
 	req.Runs = min(max(req.Runs, 1), candyMaxRuns)
 	return startRuns(req.AuthIDs, req.All, req.ModelCatalog, req.Model,
-		func(id string) {
-			candyResults[id] = appendRecent(candyResults[id], candyResult{Time: time.Now().UTC(), Model: req.Model, Effort: req.Effort, Skipped: true, Error: unsupportedModelMessage})
+		func(id, reason string) {
+			candyResults[id] = appendRecent(candyResults[id], candyResult{Time: time.Now().UTC(), Model: req.Model, Effort: req.Effort, Skipped: true, Error: reason})
 		},
 		func(auth credential) {
 			candyRunning[auth.ID] = &candyProgress{Total: req.Runs}

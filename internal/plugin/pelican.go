@@ -60,9 +60,9 @@ func pelicanRunResponse(body []byte) managementResponse {
 		return jsonError(http.StatusBadRequest, "请选择模型")
 	}
 	return startRuns(req.AuthIDs, req.All, req.ModelCatalog, req.Model,
-		func(id string) {
+		func(id, reason string) {
 			now := time.Now().UTC()
-			pelicanResults[id] = appendRecent(pelicanResults[id], pelicanResult{ID: fmt.Sprint(now.UnixNano()), Time: now, Model: req.Model, Effort: req.Effort, Skipped: true, Error: unsupportedModelMessage})
+			pelicanResults[id] = appendRecent(pelicanResults[id], pelicanResult{ID: fmt.Sprint(now.UnixNano()), Time: now, Model: req.Model, Effort: req.Effort, Skipped: true, Error: reason})
 		},
 		func(auth credential) {
 			pelicanRunning[auth.ID] = true

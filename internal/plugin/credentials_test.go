@@ -153,6 +153,24 @@ func TestCandyPreflightPinnedProvidersAndNone(t *testing.T) {
 	}
 }
 
+func TestCandyPreflightSkipsModelCooldownWithoutRequest(t *testing.T) {
+	setupTest(t)
+	hostCall = func(method string, _ any) (json.RawMessage, error) {
+		if method != "host.auth.list" {
+			t.Fatalf("cooling account reached model host: %s", method)
+		}
+		return json.RawMessage(`{"files":[{"id":"cooling","provider":"codex","cooldowns":[{"scope":"model","model_key":"gpt-6.1-sol","retry_at":"2999-01-01T00:00:00Z","remaining_seconds":3600}]}]}`), nil
+	}
+	response := candyRunResponse([]byte(`{"all":true,"model":"gpt-6.1-sol","effort":"low","runs":1,"model_catalog":{"cooling":["gpt-6.1-sol"]}}`))
+	if string(response.Body) != `{"started":0,"skipped":1}` {
+		t.Fatalf("run: %s", response.Body)
+	}
+	result := candyResults["cooling"][0]
+	if !result.Skipped || result.Error != modelCooldownMessage {
+		t.Fatalf("cooldown result = %+v", result)
+	}
+}
+
 func TestDetectionPreflightSkipsWithoutRequests(t *testing.T) {
 	setupTest(t)
 	hostCall = func(method string, _ any) (json.RawMessage, error) {

@@ -1,6 +1,29 @@
 package plugin
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
+
+const modelCooldownMessage = "已跳过：所选模型处于冷却中"
+
+func modelCooling(auth credential, model string, now time.Time) bool {
+	for _, cooldown := range auth.Cooldowns {
+		if cooldown.Scope != "model" || cooldown.ModelKey != model {
+			continue
+		}
+		if !cooldown.RetryAt.IsZero() && cooldown.RetryAt.After(now) {
+			return true
+		}
+		if cooldown.RetryAt.IsZero() && cooldown.RemainingSecond > 0 {
+			return true
+		}
+		if cooldown.RemainingSecond > 0 {
+			return true
+		}
+	}
+	return false
+}
 
 // Call with mu held; a credential can only run one test at a time.
 func credentialBusyLocked(id string) bool {
@@ -17,7 +40,7 @@ type runSummary struct {
 // startRuns starts a test on each selected credential that is idle. Credentials whose model list lacks
 // model get skip instead. Both callbacks run with mu held; start must launch a goroutine that calls
 // tasks.Done.
-func startRuns(authIDs []string, all bool, catalog map[string][]string, model string, skip func(id string), start func(auth credential)) managementResponse {
+func startRuns(authIDs []string, all bool, catalog map[string][]string, model string, skip func(id, reason string), start func(auth credential)) managementResponse {
 	auths, err := selectedCredentials(authIDs, all)
 	if err != nil {
 		return jsonError(http.StatusBadGateway, err.Error())
@@ -36,8 +59,13 @@ func startRuns(authIDs []string, all bool, catalog map[string][]string, model st
 			summary.Busy++
 			continue
 		}
+		if modelCooling(auth, model, time.Now()) {
+			skip(auth.ID, modelCooldownMessage)
+			summary.Skipped++
+			continue
+		}
 		if known, supported := credentialSupportsModel(catalog, auth.ID, model); known && !supported {
-			skip(auth.ID)
+			skip(auth.ID, unsupportedModelMessage)
 			summary.Skipped++
 			continue
 		} else if !known {

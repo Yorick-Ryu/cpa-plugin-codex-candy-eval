@@ -147,9 +147,9 @@ func detectionRunResponse(body []byte) managementResponse {
 		return jsonError(http.StatusBadRequest, fmt.Sprintf("每凭证并发须为 1–%d", detectionTarget))
 	}
 	return startRuns(req.AuthIDs, req.All, req.ModelCatalog, req.Model,
-		func(id string) {
+		func(id, reason string) {
 			now := time.Now().UTC()
-			appendDetectionResult(id, detectionResult{ID: fmt.Sprint(now.UnixNano()), Time: now, Model: req.Model, Status: "skipped", Error: unsupportedModelMessage})
+			appendDetectionResult(id, detectionResult{ID: fmt.Sprint(now.UnixNano()), Time: now, Model: req.Model, Status: "skipped", Error: reason})
 		},
 		func(auth credential) {
 			ctx, cancel := context.WithCancel(context.Background())
