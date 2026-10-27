@@ -1,7 +1,10 @@
 package plugin
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -23,6 +26,37 @@ func modelCooling(auth credential, model string, now time.Time) bool {
 		}
 	}
 	return false
+}
+
+// Older CPA plugin callbacks omit model cooldowns. Keep the last explicit
+// model_cooldown response authoritative until its reported retry time.
+// Call with mu held; a later completed request supersedes earlier errors.
+func recordedModelCooling(id, model string, now time.Time) bool {
+	return recordedModelCooldownUntil(id, model).After(now)
+}
+
+func recordedModelCooldownUntil(id, model string) time.Time {
+	for i := len(candyResults[id]) - 1; i >= 0; i-- {
+		r := candyResults[id][i]
+		if r.Model != model || (r.Skipped && !strings.Contains(r.Error, `"model_cooldown"`)) {
+			continue
+		}
+		var envelope struct {
+			Error struct {
+				Code         string  `json:"code"`
+				ResetSeconds float64 `json:"reset_seconds"`
+			} `json:"error"`
+		}
+		start := strings.IndexByte(r.Error, '{')
+		if start < 0 || json.Unmarshal([]byte(r.Error[start:]), &envelope) != nil || envelope.Error.Code != "model_cooldown" {
+			return time.Time{}
+		}
+		if envelope.Error.ResetSeconds > 0 {
+			return r.Time.Add(time.Duration(envelope.Error.ResetSeconds * float64(time.Second)))
+		}
+		return time.Time{}
+	}
+	return time.Time{}
 }
 
 // Call with mu held; a credential can only run one test at a time.
@@ -59,8 +93,14 @@ func startRuns(authIDs []string, all bool, catalog map[string][]string, model st
 			summary.Busy++
 			continue
 		}
-		if modelCooling(auth, model, time.Now()) {
-			skip(auth.ID, modelCooldownMessage)
+		now := time.Now()
+		recordedUntil := recordedModelCooldownUntil(auth.ID, model)
+		if modelCooling(auth, model, now) || recordedUntil.After(now) {
+			reason := modelCooldownMessage
+			if recordedUntil.After(now) {
+				reason += fmt.Sprintf(`: {"error":{"code":"model_cooldown","reset_seconds":%f}}`, recordedUntil.Sub(now).Seconds())
+			}
+			skip(auth.ID, reason)
 			summary.Skipped++
 			continue
 		}

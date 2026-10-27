@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestCredentialInventoryAndSync(t *testing.T) {
@@ -168,6 +169,32 @@ func TestCandyPreflightSkipsModelCooldownWithoutRequest(t *testing.T) {
 	result := candyResults["cooling"][0]
 	if !result.Skipped || result.Error != modelCooldownMessage {
 		t.Fatalf("cooldown result = %+v", result)
+	}
+}
+
+func TestCandyPreflightHonorsRecordedCooldownOnOlderHost(t *testing.T) {
+	setupTest(t)
+	now := time.Now().UTC()
+	candyResults["cooling"] = []candyResult{{Time: now, Model: "gpt-6.1-sol", Error: `host_call_failed: {"error":{"code":"model_cooldown","reset_seconds":3600}}`}}
+	hostCall = func(method string, _ any) (json.RawMessage, error) {
+		if method != "host.auth.list" {
+			t.Fatalf("cooling account reached model host: %s", method)
+		}
+		return json.RawMessage(`{"files":[{"id":"cooling","provider":"codex"}]}`), nil
+	}
+	response := candyRunResponse([]byte(`{"all":true,"model":"gpt-6.1-sol","effort":"low"}`))
+	if string(response.Body) != `{"started":0,"skipped":1}` {
+		t.Fatalf("run: %s", response.Body)
+	}
+	if !recordedModelCooling("cooling", "gpt-6.1-sol", now.Add(time.Minute)) {
+		t.Fatal("skip lost the cooldown")
+	}
+	if recordedModelCooling("cooling", "gpt-6.1-sol", now.Add(2*time.Hour)) {
+		t.Fatal("expired cooldown still blocked")
+	}
+	candyResults["cooling"] = append(candyResults["cooling"], candyResult{Time: now.Add(time.Second), Model: "gpt-6.1-sol", OK: true})
+	if recordedModelCooling("cooling", "gpt-6.1-sol", now.Add(time.Minute)) {
+		t.Fatal("later success did not clear recorded cooldown")
 	}
 }
 
