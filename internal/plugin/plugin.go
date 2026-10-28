@@ -15,7 +15,7 @@ import (
 
 const (
 	pluginID       = "omcpa-codex-candy-eval"
-	pluginVersion  = "0.4.0-omc.8"
+	pluginVersion  = "0.4.0-omc.9"
 	ABIVersion     = 1
 	schemaVersion  = 6
 	managementBase = "/v0/management/plugins/" + pluginID
