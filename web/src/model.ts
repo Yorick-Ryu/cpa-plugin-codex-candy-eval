@@ -79,7 +79,7 @@ export const busy = (a: Credential) =>
     a.pelican_running
   );
 export const available = (a: Credential) =>
-  !a.disabled && !a.unavailable && !busy(a);
+  !a.disabled && !busy(a);
 export const progress = (a: Credential, test: Test) =>
   test === "candy"
     ? a.running

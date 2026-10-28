@@ -88,6 +88,9 @@ func evaluatePelican(auth credential, model, effort string) pelicanResult {
 	r.InputTokens, r.OutputTokens, r.ReasoningTokens = out.InputTokens, out.OutputTokens, out.ReasoningTokens
 	if err != nil {
 		r.Error = truncate(err.Error(), 500)
+		if isModelCooldown(err) {
+			r.Skipped, r.Error = true, modelCooldownMessage
+		}
 		return r
 	}
 	switch html := extractHTML(out.Answer); {

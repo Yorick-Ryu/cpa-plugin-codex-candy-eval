@@ -45,11 +45,11 @@ func TestCredentialInventoryAndSync(t *testing.T) {
 		}
 	}
 	selected, err := selectedCredentials(nil, true)
-	if err != nil || len(selected) != 4 {
+	if err != nil || len(selected) != 5 {
 		t.Fatalf("selected = %+v, %v", selected, err)
 	}
 	selected, _ = selectedCredentials([]string{"compat", "configured", "cooling.json"}, false)
-	if len(selected) != 1 || selected[0].Provider != "openai-compatible-demo" {
+	if len(selected) != 2 {
 		t.Fatalf("selection = %+v", selected)
 	}
 	for _, body := range []string{`{}`, `{"credentials":[{"id":"a","provider":"codex"},{"id":"a","provider":"codex"}]}`} {
@@ -154,47 +154,56 @@ func TestCandyPreflightPinnedProvidersAndNone(t *testing.T) {
 	}
 }
 
-func TestCandyPreflightSkipsModelCooldownWithoutRequest(t *testing.T) {
-	setupTest(t)
-	hostCall = func(method string, _ any) (json.RawMessage, error) {
-		if method != "host.auth.list" {
-			t.Fatalf("cooling account reached model host: %s", method)
-		}
-		return json.RawMessage(`{"files":[{"id":"cooling","provider":"codex","cooldowns":[{"scope":"model","model_key":"gpt-6.1-sol","retry_at":"2999-01-01T00:00:00Z","remaining_seconds":3600}]}]}`), nil
-	}
-	response := candyRunResponse([]byte(`{"all":true,"model":"gpt-6.1-sol","effort":"low","runs":1,"model_catalog":{"cooling":["gpt-6.1-sol"]}}`))
-	if string(response.Body) != `{"started":0,"skipped":1}` {
-		t.Fatalf("run: %s", response.Body)
-	}
-	result := candyResults["cooling"][0]
-	if !result.Skipped || result.Error != modelCooldownMessage {
-		t.Fatalf("cooldown result = %+v", result)
-	}
-}
-
-func TestCandyPreflightHonorsRecordedCooldownOnOlderHost(t *testing.T) {
-	setupTest(t)
-	now := time.Now().UTC()
-	candyResults["cooling"] = []candyResult{{Time: now, Model: "gpt-6.1-sol", Error: `host_call_failed: {"error":{"code":"model_cooldown","reset_seconds":3600}}`}}
-	hostCall = func(method string, _ any) (json.RawMessage, error) {
-		if method != "host.auth.list" {
-			t.Fatalf("cooling account reached model host: %s", method)
-		}
-		return json.RawMessage(`{"files":[{"id":"cooling","provider":"codex"}]}`), nil
-	}
-	response := candyRunResponse([]byte(`{"all":true,"model":"gpt-6.1-sol","effort":"low"}`))
-	if string(response.Body) != `{"started":0,"skipped":1}` {
-		t.Fatalf("run: %s", response.Body)
-	}
-	if !recordedModelCooling("cooling", "gpt-6.1-sol", now.Add(time.Minute)) {
-		t.Fatal("skip lost the cooldown")
-	}
-	if recordedModelCooling("cooling", "gpt-6.1-sol", now.Add(2*time.Hour)) {
-		t.Fatal("expired cooldown still blocked")
-	}
-	candyResults["cooling"] = append(candyResults["cooling"], candyResult{Time: now.Add(time.Second), Model: "gpt-6.1-sol", OK: true})
-	if recordedModelCooling("cooling", "gpt-6.1-sol", now.Add(time.Minute)) {
-		t.Fatal("later success did not clear recorded cooldown")
+// Older callbacks omit model cooldowns. Even a persisted, future retry deadline
+// must not overrule recovery: the host validates the pinned request's live state.
+func TestCandyPreflightUsesHostStateInsteadOfCooldownHistory(t *testing.T) {
+	for _, liveCooldown := range []bool{false, true} {
+		t.Run(fmt.Sprintf("host_cooling_%t", liveCooldown), func(t *testing.T) {
+			setupTest(t)
+			now := time.Now().UTC()
+			old := candyResult{Time: now, Model: "gpt-6.1-sol", Error: `host_call_failed: {"error":{"code":"model_cooldown","reset_seconds":604800}}`}
+			candyResults["recovered"] = []candyResult{old, {Time: now.Add(time.Second), Model: old.Model, Skipped: true, Error: old.Error}}
+			if err := saveStateLocked(); err != nil {
+				t.Fatal(err)
+			}
+			candyResults = map[string][]candyResult{}
+			loadState()
+			calls := 0
+			hostCall = streamHost(func(method string, payload any) (json.RawMessage, error) {
+				if method == "host.auth.list" {
+					return json.RawMessage(`{"files":[{"id":"recovered","provider":"codex","status":"active","unavailable":true,"next_retry_after":"2999-01-01T00:00:00Z","cooldowns":[{"scope":"model","model_key":"gpt-6.1-sol","retry_at":"2999-01-01T00:00:00Z"}]}]}`), nil
+				}
+				if method != "host.model.execute_stream" {
+					return nil, fmt.Errorf("unexpected host call %s", method)
+				}
+				var req struct {
+					ID string `json:"auth_id"`
+				}
+				raw, _ := json.Marshal(payload)
+				_ = json.Unmarshal(raw, &req)
+				if req.ID != "recovered" {
+					t.Errorf("unpinned request: %s", req.ID)
+				}
+				calls++
+				if liveCooldown {
+					return nil, &EnvelopeError{Code: "host_call_failed", Message: `{"error":{"code":"model_cooldown","reset_seconds":3600}}`, HTTPStatus: 429}
+				}
+				return mockModelResponse("21"), nil
+			})
+			response := candyRunResponse([]byte(`{"auth_ids":["recovered"],"model":"gpt-6.1-sol","effort":"low","runs":3,"model_catalog":{"recovered":["gpt-6.1-sol"]}}`))
+			tasks.Wait()
+			if string(response.Body) != `{"started":1}` || calls != map[bool]int{true: 1, false: 3}[liveCooldown] {
+				t.Fatalf("run=%s host calls=%d", response.Body, calls)
+			}
+			results := candyResults["recovered"]
+			if len(results) != 2+calls || results[0].Error != old.Error || !results[1].Skipped {
+				t.Fatalf("history changed: %+v", results)
+			}
+			last := results[len(results)-1]
+			if liveCooldown && (last.Error != modelCooldownMessage || !last.Skipped || last.OK) || !liveCooldown && (!last.OK || last.Skipped || last.Error != "") {
+				t.Fatalf("host result ignored: %+v", last)
+			}
+		})
 	}
 }
 

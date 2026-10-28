@@ -189,6 +189,7 @@ func runDetection(ctx context.Context, auth credential, req detectionRunRequest,
 	defer tasks.Done()
 	started := time.Now()
 	done := 0
+	cooldowns := 0
 	r := detectionResult{ID: fmt.Sprint(started.UnixNano()), Time: started.UTC(), Model: req.Model, Concurrency: req.Concurrency, Status: "completed"}
 	defer func() {
 		if ctx.Err() != nil && done < detectionTarget {
@@ -236,6 +237,9 @@ func runDetection(ctx context.Context, auth credential, req detectionRunRequest,
 	go func() { workers.Wait(); close(events) }()
 	samples := make([]*detectionSample, detectionTarget)
 	for e := range events {
+		if isModelCooldown(e.err) {
+			cooldowns++
+		}
 		samples[e.index] = &e.sample
 		r.InputTokens += e.output.InputTokens
 		r.OutputTokens += e.output.OutputTokens
@@ -255,6 +259,10 @@ func runDetection(ctx context.Context, auth credential, req detectionRunRequest,
 		}
 		r.Samples = append(r.Samples, *sample)
 		outputs = append(outputs, detectionOutput{sample.Text, sample.ExpectedCount})
+	}
+	if len(r.Samples) > 0 && cooldowns == len(r.Samples) {
+		r.Status, r.Error = "skipped", modelCooldownMessage
+		return
 	}
 	attr, err := analyzeDetection(outputs)
 	switch {

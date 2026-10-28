@@ -689,9 +689,7 @@ function EvaluationApp() {
             title={
               a.disabled
                 ? "凭证已停用"
-                : a.unavailable
-                  ? unavailableReason(a)
-                  : busy(a)
+                : busy(a)
                     ? "凭证正在测试"
                     : !currentSettings.model
                       ? "请选择模型"

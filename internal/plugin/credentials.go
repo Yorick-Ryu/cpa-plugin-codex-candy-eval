@@ -27,39 +27,30 @@ type credential struct {
 	Priority     int    `json:"priority"`
 	Disabled     bool   `json:"disabled"`
 	// CPA marks enabled credentials unavailable while they cool down, e.g. after exhausting quota.
-	Unavailable    bool                 `json:"unavailable,omitempty"`
-	StatusMessage  string               `json:"status_message,omitempty"`
-	NextRetryAfter time.Time            `json:"next_retry_after,omitzero"`
-	Cooldowns      []credentialCooldown `json:"-"`
-	AuthIndex      string               `json:"-"`
-}
-
-type credentialCooldown struct {
-	Scope           string    `json:"scope"`
-	ModelKey        string    `json:"model_key"`
-	RetryAt         time.Time `json:"retry_at"`
-	RemainingSecond float64   `json:"remaining_seconds"`
+	Unavailable    bool      `json:"unavailable,omitempty"`
+	StatusMessage  string    `json:"status_message,omitempty"`
+	NextRetryAfter time.Time `json:"next_retry_after,omitzero"`
+	AuthIndex      string    `json:"-"`
 }
 
 type hostAuthFile struct {
-	ID             string               `json:"id"`
-	AuthIndex      string               `json:"auth_index"`
-	Name           string               `json:"name"`
-	Provider       string               `json:"provider"`
-	Type           string               `json:"type"`
-	Source         string               `json:"source"`
-	Path           string               `json:"path"`
-	RuntimeOnly    bool                 `json:"runtime_only"`
-	Account        string               `json:"account"`
-	AccountType    string               `json:"account_type"`
-	Email          string               `json:"email"`
-	PlanType       string               `json:"plan_type"`
-	Priority       int                  `json:"priority"`
-	Disabled       bool                 `json:"disabled"`
-	Unavailable    bool                 `json:"unavailable"`
-	StatusMessage  string               `json:"status_message"`
-	NextRetryAfter time.Time            `json:"next_retry_after"`
-	Cooldowns      []credentialCooldown `json:"cooldowns"`
+	ID             string    `json:"id"`
+	AuthIndex      string    `json:"auth_index"`
+	Name           string    `json:"name"`
+	Provider       string    `json:"provider"`
+	Type           string    `json:"type"`
+	Source         string    `json:"source"`
+	Path           string    `json:"path"`
+	RuntimeOnly    bool      `json:"runtime_only"`
+	Account        string    `json:"account"`
+	AccountType    string    `json:"account_type"`
+	Email          string    `json:"email"`
+	PlanType       string    `json:"plan_type"`
+	Priority       int       `json:"priority"`
+	Disabled       bool      `json:"disabled"`
+	Unavailable    bool      `json:"unavailable"`
+	StatusMessage  string    `json:"status_message"`
+	NextRetryAfter time.Time `json:"next_retry_after"`
 }
 
 type credentialView struct {
@@ -132,7 +123,7 @@ func credentials() ([]credential, error) {
 		if strings.TrimSpace(file.ID) == "" || provider == "" {
 			continue
 		}
-		auth := credential{ID: file.ID, AuthIndex: file.AuthIndex, Name: file.Name, Provider: provider, Email: file.Email, PlanType: file.PlanType, Priority: file.Priority, Disabled: file.Disabled, Source: credentialSourceFile, Cooldowns: file.Cooldowns}
+		auth := credential{ID: file.ID, AuthIndex: file.AuthIndex, Name: file.Name, Provider: provider, Email: file.Email, PlanType: file.PlanType, Priority: file.Priority, Disabled: file.Disabled, Source: credentialSourceFile}
 		// Like CPA's scheduler, treat a cooldown as over once its retry time passes, even if the flag remains.
 		if file.Unavailable && !file.Disabled && (file.NextRetryAfter.IsZero() || file.NextRetryAfter.After(now)) {
 			auth.Unavailable, auth.StatusMessage, auth.NextRetryAfter = true, strings.TrimSpace(file.StatusMessage), file.NextRetryAfter
@@ -195,7 +186,7 @@ func selectedCredentials(ids []string, all bool) ([]credential, error) {
 	}
 	selected := auths[:0]
 	for _, auth := range auths {
-		if !auth.Disabled && !auth.Unavailable && (all || wanted[auth.ID]) {
+		if !auth.Disabled && (all || wanted[auth.ID]) {
 			selected = append(selected, auth)
 		}
 	}

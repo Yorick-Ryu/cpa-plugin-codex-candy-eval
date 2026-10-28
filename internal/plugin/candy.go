@@ -94,6 +94,9 @@ func runCandy(auth credential, model, effort string, runs int) {
 		candyRunning[id].Done++
 		_ = saveStateLocked()
 		mu.Unlock()
+		if r.Skipped {
+			return
+		}
 	}
 }
 
@@ -104,6 +107,9 @@ func evaluateCandy(auth credential, model, effort string) candyResult {
 	r.InputTokens, r.OutputTokens, r.ReasoningTokens = out.InputTokens, out.OutputTokens, out.ReasoningTokens
 	if err != nil {
 		r.Error = truncate(err.Error(), 500)
+		if isModelCooldown(err) {
+			r.Skipped, r.Error = true, modelCooldownMessage
+		}
 		return r
 	}
 	r.Answer = truncate(out.Answer, 4000)

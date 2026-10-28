@@ -35,7 +35,7 @@ for (const malformed of [
 ])
   assert.throws(() => parseState(malformed));
 assert.equal(available(auth), true);
-assert.equal(available({ ...auth, unavailable: true }), false);
+assert.equal(available({ ...auth, unavailable: true }), true);
 assert.equal(available({ ...auth, detection_running: { done: 0 } }), false);
 assert.equal(
   provider({ ...auth, provider: "openai-compatible-synthetic" }),

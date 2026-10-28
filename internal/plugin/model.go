@@ -30,6 +30,32 @@ func retryableModelStatus(status int) bool {
 	return status == 0 || status == http.StatusTooManyRequests || status >= http.StatusInternalServerError
 }
 
+// Only an explicit host error code is a cooldown; generic 429s remain errors.
+func isModelCooldown(err error) bool {
+	if err == nil {
+		return false
+	}
+	var hostError *EnvelopeError
+	if errors.As(err, &hostError) && hostError.Code == "model_cooldown" {
+		return true
+	}
+	text := err.Error()
+	start := strings.IndexByte(text, '{')
+	if start < 0 {
+		return false
+	}
+	var body struct {
+		Error struct {
+			Code string `json:"code"`
+		} `json:"error"`
+		Code string `json:"code"`
+	}
+	if json.Unmarshal([]byte(text[start:]), &body) != nil {
+		return false
+	}
+	return body.Error.Code == "model_cooldown" || body.Code == "model_cooldown"
+}
+
 // Time limits of a model request, as a model stuck repeating itself streams until the upstream cuts it off.
 // Probes normally answer within a minute.
 const (
@@ -70,7 +96,7 @@ func executeProbe(ctx context.Context, auth credential, model string, body any, 
 			out.OutputTokens += response.OutputTokens
 			out.ReasoningTokens += response.ReasoningTokens
 		}()
-		if err == nil || !retryableModelStatus(status) || attempt == 2 {
+		if err == nil || isModelCooldown(err) || !retryableModelStatus(status) || attempt == 2 {
 			return
 		}
 		timer := time.NewTimer(time.Duration(2<<attempt) * time.Second)
