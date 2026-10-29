@@ -62,6 +62,7 @@ import {
 } from "legacy";
 import {
   available,
+  compareCredentialPriority,
   busy,
   provider,
   tests,
@@ -418,7 +419,7 @@ function EvaluationApp() {
             v?.toLowerCase().includes(search.toLowerCase()),
           )),
     )
-    .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || planRank(a) - planRank(b));
+    .sort((a, b) => compareCredentialPriority(a, b) || planRank(a) - planRank(b));
   const hasHistory = (a: Credential) => a[tests[active].field].length > 0;
   const visible = filtered.filter(
     (a) =>

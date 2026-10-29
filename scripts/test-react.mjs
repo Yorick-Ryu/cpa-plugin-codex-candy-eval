@@ -14,7 +14,7 @@ new Function("module", "exports", bundled.outputFiles[0].text)(
   module,
   module.exports,
 );
-const { parseState, verdict, available, provider } = module.exports;
+const { parseState, verdict, available, provider, compareCredentialPriority } = module.exports;
 globalThis.window = {CANDY_CONFIG: {detection: {aliases: {"gpt-6.1-sol":"gpt-6-astra", "deepseek-flash":"deepseek-v4.1-flash-1017"}}}};
 const auth = {
   id: "synthetic",
@@ -35,6 +35,17 @@ for (const malformed of [
 ])
   assert.throws(() => parseState(malformed));
 assert.equal(available(auth), true);
+const ordering = [
+  { ...auth, id: 'supplier-first', source: 'ai_providers', priority: 100 },
+  { ...auth, id: 'low', priority: -3 },
+  { ...auth, id: 'same-first', priority: 10 },
+  { ...auth, id: 'supplier-second', source: 'ai_providers', priority: 1000 },
+  { ...auth, id: 'same-second', priority: 10 },
+  { ...auth, id: 'high', priority: 100 },
+];
+assert.deepEqual(ordering.sort(compareCredentialPriority).map(a => a.id),
+  ['high', 'same-first', 'same-second', 'low', 'supplier-first', 'supplier-second'],
+  'credentials sort by priority; suppliers remain below every credential in their previous order');
 assert.equal(available({ ...auth, unavailable: true }), true);
 assert.equal(available({ ...auth, detection_running: { done: 0 } }), false);
 assert.equal(

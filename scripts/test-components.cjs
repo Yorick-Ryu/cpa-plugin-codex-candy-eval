@@ -205,6 +205,19 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
       ),
     );
     assert.equal(requests.filter((r) => r.method === "DELETE").length, 0);
+    for (const [id, priority] of [['supplier-a', 1000], ['supplier-b', 2000]]) {
+      auths.push({ ...auths[0], id, name: id, source: 'ai_providers', provider: 'openai-compatibility',
+        base_url: `https://${id}.example.test`, plan_type: undefined, priority,
+        results: [], detections: [], pelicans: [] });
+    }
+    fireEvent.input(search, { target: { value: "" } });
+    fireEvent.click(role("button", "刷新凭证和模型"));
+    await wait(() => assert(stat("当前凭证", 6)));
+    assert.deepEqual(
+      [...body.querySelectorAll(".credential-name")].map(node => node.textContent),
+      ["workspace-gamma@example.test", "workspace-delta@example.test", "workspace-alpha@example.test", "workspace-beta@example.test", "supplier-a.example.test", "supplier-b.example.test"],
+      "high-priority suppliers remain below credentials and preserve supplier order",
+    );
     assert.deepEqual(errors, []);
     console.log(
       "Shipped React UI passed: search, selection, run and polling, history, detection ranking, partial/not-model outcomes and cancellation, sandboxed pelican, clear confirmation.",

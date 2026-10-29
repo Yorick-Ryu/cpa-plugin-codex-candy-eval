@@ -90,6 +90,13 @@ export const provider = (a: Credential) =>
     ? "openai-compatibility"
     : a.provider;
 export const credentialType = (a: Credential) => a.source + ":" + provider(a);
+export const compareCredentialPriority = (a: Credential, b: Credential) => {
+  const aSupplier = a.source === "ai_providers";
+  const bSupplier = b.source === "ai_providers";
+  if (aSupplier !== bSupplier) return aSupplier ? 1 : -1;
+  if (aSupplier) return 0;
+  return (b.priority ?? 0) - (a.priority ?? 0);
+};
 export const typeLabel = (type: string) => {
   const [source, ...rest] = type.split(":");
   return (
