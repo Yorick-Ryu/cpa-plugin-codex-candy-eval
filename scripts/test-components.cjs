@@ -8,6 +8,7 @@ const { JSDOM, VirtualConsole } = webRequire("jsdom");
 const { getByRole, getAllByRole, queryByRole, fireEvent, waitFor, within } =
   webRequire("@testing-library/dom");
 const { server, page, auths, detection } = require("./preview.cjs");
+auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
 (async () => {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const origin = "http://127.0.0.1:" + server.address().port;
@@ -67,6 +68,11 @@ const { server, page, auths, detection } = require("./preview.cjs");
   const wait = (fn) => waitFor(fn, { container: body, timeout: 15000 });
   try {
     await wait(() => assert(stat("当前凭证", 4)));
+    assert.deepEqual(
+      [...body.querySelectorAll(".credential-name")].map(node => node.textContent),
+      ["workspace-gamma@example.test", "workspace-delta@example.test", "workspace-alpha@example.test", "workspace-beta@example.test"],
+      "priority sorts first; equal priorities preserve the previous plan and source ordering",
+    );
     assert(role("button", "测试全部 (3)"));
     assert(role("tab", "全部 4"));
     assert(role("tab", "Codex 4"));
