@@ -127,3 +127,7 @@ separate content-addressed plugin resources with private, immutable browser
 caching. Updates change their URLs automatically. Management and account data
 are not cached. Reverse proxies must preserve these static resource cache
 headers rather than append `no-store` to every response.
+
+Byte-identical Sarasa faces reuse the existing OMC font asset URLs, with the
+plugin resources retained for standalone hosting. Scripts retain their original
+execution boundaries so the OMC resource adapter can process them individually.

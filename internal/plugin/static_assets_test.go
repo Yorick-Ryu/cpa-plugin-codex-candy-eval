@@ -88,22 +88,59 @@ func TestStaticPageResourcesAndCacheBoundary(t *testing.T) {
 }
 
 func TestStaticBundlePreservesScriptOrderAndChangesURL(t *testing.T) {
-	source := []byte(`<html><head><style>body{color:red}</style></head><body><script>window.first=1;// comment</script><script>window.second=window.first+1</script></body></html>`)
+	source := []byte(`<html><style>body{color:red}</style><script>window.first=1;// comment</script><script>window.second=window.first+1</script></html>`)
 	page := splitStaticPage(source)
+	var first, second string
 	for path, asset := range page.assets {
-		if strings.HasSuffix(path, ".js") && string(asset.Body) != "window.first=1;// comment\n;\nwindow.second=window.first+1\n;\n" {
-			t.Fatal("script order or separator lost")
+		switch string(asset.Body) {
+		case "window.first=1;// comment":
+			first = path
+		case "window.second=window.first+1":
+			second = path
 		}
 	}
+	if first == "" || second == "" || bytes.Index(page.document, []byte(first)) >= bytes.Index(page.document, []byte(second)) {
+		t.Fatal("script boundary or order lost")
+	}
 	changed := splitStaticPage(bytes.ReplaceAll(source, []byte("first=1"), []byte("first=2")))
-	for path := range page.assets {
-		if strings.HasSuffix(path, ".js") {
-			if _, ok := changed.assets[path]; ok {
-				t.Fatal("changed JS reused immutable URL")
-			}
-		}
+	if _, ok := changed.assets[first]; ok {
+		t.Fatal("changed script reused URL")
+	}
+	if _, ok := changed.assets[second]; !ok {
+		t.Fatal("unchanged script lost cache identity")
 	}
 	if bytes.Contains(page.document, []byte("window.first")) {
 		t.Fatal("inline script remains")
+	}
+}
+
+func TestSharedOMCFontsPrecedePluginFallback(t *testing.T) {
+	count := 0
+	for path, asset := range browserPage.assets {
+		if !strings.HasSuffix(path, ".woff2") {
+			continue
+		}
+		shared := omcFontResource(asset.Body)
+		if shared == "" {
+			continue
+		}
+		count++
+		found := false
+		for cssPath, css := range browserPage.assets {
+			if !strings.HasSuffix(cssPath, ".css") {
+				continue
+			}
+			first, fallback := bytes.Index(css.Body, []byte(shared)), bytes.Index(css.Body, []byte(path))
+			found = first >= 0 && fallback > first
+		}
+		if !found {
+			t.Fatal("shared face does not precede its fallback")
+		}
+	}
+	if count != 2 {
+		t.Fatalf("expected two existing OMC faces, got %d", count)
+	}
+	if omcFontResource([]byte("different font")) != "" {
+		t.Fatal("unknown font mapped to OMC")
 	}
 }
