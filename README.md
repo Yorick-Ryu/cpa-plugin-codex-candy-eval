@@ -119,3 +119,11 @@ plugins:
 - [codex-candy-eval](https://github.com/haowang02/codex-candy-eval)
 - [LM Fingerpoint Detector](https://github.com/Ikaleio/lm-detector) — 指纹检测使用的数字指纹归因算法与参考库（MIT）
 - [LINUX DO](https://linux.do/) - 新的理想型社区
+
+### Browser asset caching
+
+The UI document remains `no-store`; its scripts, styles and WOFF2 fonts are
+separate content-addressed plugin resources with private, immutable browser
+caching. Updates change their URLs automatically. Management and account data
+are not cached. Reverse proxies must preserve these static resource cache
+headers rather than append `no-store` to every response.

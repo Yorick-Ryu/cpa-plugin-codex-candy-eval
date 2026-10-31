@@ -15,7 +15,7 @@ import (
 
 const (
 	pluginID       = "omcpa-codex-candy-eval"
-	pluginVersion  = "0.4.0-omc.11"
+	pluginVersion  = "0.4.0-omc.12"
 	ABIVersion     = 1
 	schemaVersion  = 6
 	managementBase = "/v0/management/plugins/" + pluginID
@@ -81,6 +81,8 @@ var uiHTML = func() []byte {
 		"/*THEME_SCRIPT*/", themeScript,
 	).Replace(uiTemplate))
 }()
+
+var browserPage = splitStaticPage(uiHTML)
 
 // Lucide "candy" icon. Hosts render it in an img element, so the stroke color is fixed.
 const logoSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#72787c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><style>@media (prefers-color-scheme: dark) { :root { stroke: #9c9d9b; } }</style><path d="M10 7v10.9"/><path d="M14 6.1V17"/><path d="M16 7V3a1 1 0 0 1 1.707-.707 2.5 2.5 0 0 0 2.152.717 1 1 0 0 1 1.131 1.131 2.5 2.5 0 0 0 .717 2.152A1 1 0 0 1 21 8h-4"/><path d="M16.536 7.465a5 5 0 0 0-7.072 0l-2 2a5 5 0 0 0 0 7.07 5 5 0 0 0 7.072 0l2-2a5 5 0 0 0 0-7.07"/><path d="M8 17v4a1 1 0 0 1-1.707.707 2.5 2.5 0 0 0-2.152-.717 1 1 0 0 1-1.131-1.131 2.5 2.5 0 0 0-.717-2.152A1 1 0 0 1 3 16h4"/></svg>`
@@ -160,9 +162,7 @@ func HandleMethod(method string, request []byte) (response []byte) {
 				{"Method": http.MethodPost, "Path": managementBase + "/inspection", "Description": "Inspect credentials with the candy test or fingerprint detection"},
 				{"Method": http.MethodGet, "Path": managementBase + "/inspection", "Description": "View the latest inspection of a test"},
 			},
-			"resources": []map[string]string{
-				{"Path": uiPath, "Menu": "降智测试", "Description": "通过糖果题、指纹检测和画鹈鹕检测 CPA 凭证"},
-			},
+			"resources": browserPage.resources("降智测试", "通过糖果题、指纹检测和画鹈鹕检测 CPA 凭证"),
 		})
 	case "management.handle":
 		var req managementRequest
@@ -179,6 +179,11 @@ func HandleMethod(method string, request []byte) (response []byte) {
 }
 
 func handleManagement(req managementRequest) managementResponse {
+	if req.Method == http.MethodGet {
+		if asset, ok := browserPage.assets[req.Path]; ok {
+			return asset
+		}
+	}
 	path := strings.TrimRight(req.Path, "/")
 	switch {
 	case req.Method == http.MethodGet && path == uiPath:
@@ -188,9 +193,9 @@ func handleManagement(req managementRequest) managementResponse {
 				"Content-Type":            {"text/html; charset=utf-8"},
 				"Cache-Control":           {"no-store"},
 				"X-Content-Type-Options":  {"nosniff"},
-				"Content-Security-Policy": {"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"},
+				"Content-Security-Policy": {"default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src data:; font-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'self'"},
 			},
-			Body: uiHTML,
+			Body: browserPage.document,
 		}
 	case req.Method == http.MethodPost && path == managementBase+"/credentials/sync":
 		return syncCredentialsResponse(req.Body)

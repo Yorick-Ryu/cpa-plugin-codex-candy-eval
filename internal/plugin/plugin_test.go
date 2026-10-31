@@ -74,7 +74,7 @@ func TestOMCEditionIdentityIsIndependent(t *testing.T) {
 			t.Errorf("route uses another plugin's namespace: %q", route.Path)
 		}
 	}
-	if len(management.Result.Resources) != 1 || management.Result.Resources[0].Path != "/v0/resource/plugins/"+wantID+"/ui" {
+	if len(management.Result.Resources) != 1+len(browserPage.assets) || management.Result.Resources[0].Path != "/v0/resource/plugins/"+wantID+"/ui" {
 		t.Fatalf("resources = %+v", management.Result.Resources)
 	}
 	oldRoute := handleManagement(managementRequest{Method: http.MethodGet, Path: "/v0/management/plugins/cpa-codex-candy-eval/state"})
