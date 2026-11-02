@@ -1,0 +1,12 @@
+{
+  "plugin": "omcpa-codex-candy-eval",
+  "source_commit": "e2a376735ea17991a704d007a9b9533e0f47b90d",
+  "behavior_commit": "6e568491846c21a497f3ce9d4143e46eb2611020",
+  "version": "0.4.0-omc.15",
+  "library_sha256": "c3a671ac6d1eaad20400719c670c671280e869020bd44cf7d4eb3c86d24bbb98",
+  "host": "clouvider",
+  "deployed": true,
+  "hot_replaced": true,
+  "containers_unchanged": true,
+  "backup": "/opt/stacks/cpa/candy-ciallo-keyword-20261102T173647Z"
+}
