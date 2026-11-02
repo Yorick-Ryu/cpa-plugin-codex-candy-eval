@@ -10,8 +10,10 @@ func TestClassifyCiallo(t *testing.T) {
 		{"", "inconclusive"},
 		{"Ciallo！", "inconclusive"},
 		{"Ciallo~(∠・ω< )⌒★", "inconclusive"},
-		{"Ciallo! Ciallo~(c・w<)★", "inconclusive"},
-		{"The expected answer is Ciallo~(c・w<)★", "inconclusive"},
+		{"Ciallo~(c・w<)★，这是我的回复", "pass"},
+		{"答案：Ciallo!（降智）", "fail"},
+		{"Ciallo! Ciallo~(c・w<)★", "pass"},
+		{"The expected answer is Ciallo~(c・w<)★", "pass"},
 	} {
 		if got := classifyCiallo(tc.answer); got != tc.want {
 			t.Errorf("%q: got %s, want %s", tc.answer, got, tc.want)

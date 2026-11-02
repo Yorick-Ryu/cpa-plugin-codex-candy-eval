@@ -150,12 +150,12 @@ func hasStandalone21(text string) bool {
 
 // classifyCiallo matches a community reply-style rule, not model identity.
 func classifyCiallo(answer string) string {
-	switch strings.TrimSpace(answer) {
-	case "Ciallo~(c・w<)★":
+	answer = strings.TrimSpace(answer)
+	if strings.Contains(answer, "Ciallo~(c・w<)★") {
 		return "pass"
-	case "Ciallo!":
-		return "fail"
-	default:
-		return "inconclusive"
 	}
+	if strings.Contains(answer, "Ciallo!") {
+		return "fail"
+	}
+	return "inconclusive"
 }
