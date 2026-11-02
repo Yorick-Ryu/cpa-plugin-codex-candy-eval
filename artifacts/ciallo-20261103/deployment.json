@@ -1,0 +1,13 @@
+{
+  "plugin": "omcpa-codex-candy-eval",
+  "source_commit": "fb71c163344c9fe4772f085badb772a320e5dbd4",
+  "version": "0.4.0-omc.14",
+  "library_sha256": "2b0b24296c0e0b6ef497391438f8d2a154f9e26e9509eef0fe59eb7f400c843b",
+  "host": "clouvider",
+  "deployed": true,
+  "hot_replaced": true,
+  "containers_unchanged": true,
+  "history_storage_ok": true,
+  "backup": "/opt/stacks/cpa/candy-ciallo-20261102T172017Z",
+  "rollback": "Restore the retired v0.4.0-omc.13 library and previous plugin store pin from the backup through the management API; preserve current history."
+}
