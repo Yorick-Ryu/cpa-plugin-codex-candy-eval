@@ -193,6 +193,7 @@ const server = http.createServer(async (req, res) => {
         test === "pelican"
           ? true
           : {
+              method: body.method,
               done: 0,
               total: 3,
               model: body.model,
@@ -207,6 +208,8 @@ const server = http.createServer(async (req, res) => {
             detection,
             pelican: { ...pl, html: undefined },
           }[test],
+          ...(test === "candy" && body.method === "ciallo"
+            ? { method: "ciallo", verdict: "pass", ok: true, answer: "Ciallo~(c・w<)★" } : {}),
           model: body.model,
           time: new Date().toISOString(),
         });
@@ -240,7 +243,11 @@ const server = http.createServer(async (req, res) => {
                   ? "pelicans"
                   : "results",
           ];
-      for (const field of fields) a[field] = [];
+      for (const field of fields) {
+        const method = url.searchParams.get("method");
+        a[field] = field === "results" && method
+          ? a[field].filter(r => (r.method || "candy") !== method) : [];
+      }
     }
     return send(res, { ok: true });
   }

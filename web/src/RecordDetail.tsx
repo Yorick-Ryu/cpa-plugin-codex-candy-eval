@@ -34,6 +34,7 @@ export function RecordMeta({ record: r }: { record: RecordData }) {
   return (
     <div className="record-meta">
       <span>{fmtTime(r.time)}</span>
+      {r.method && <span>{r.method === "ciallo" ? "Ciallo 回复规则" : "糖果题"}</span>}
       <span>
         {r.model}
         {r.effort ? ` · ${r.effort}` : ""}
@@ -63,7 +64,7 @@ export function RecordDetail({
       <RecordMeta record={r} />
       <StatusLabel tone={state.tone}>{state.label}</StatusLabel>
       {r.error && <Alert type="error" showIcon title={r.error} />}
-      {test === "candy" && <Answer record={r} />}
+      {(test === "candy" || test === "ciallo") && <Answer record={r} />}
       {test === "pelican" && r.html && (
         <iframe
           title="鹈鹕动画"

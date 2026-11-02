@@ -131,3 +131,15 @@ headers rather than append `no-store` to every response.
 Byte-identical Sarasa faces reuse the existing OMC font asset URLs, with the
 plugin resources retained for standalone hosting. Scripts retain their original
 execution boundaries so the OMC resource adapter can process them individually.
+
+### Ciallo 回复规则
+
+在独立的「Ciallo」标签页运行测试，仅发送 `ciallo`。
+模型、推理强度、次数及凭证选择与糖果题分别保存；历史、正确率及清空操作按方法隔离。
+忽略首尾空白后，`Ciallo~(c・w<)★` 判通过，`Ciallo!` 判未通过；
+其他回复判无法判断，不计入正确率，请求错误单独显示。
+这是用户提供的社区回复风格规则，不能证实 GPT-6-Astra / GPT-6-Luna
+身份或模型能力。原始回答及方法保留在历史中，正确率按方法分别统计。
+`POST /run` 可传 `method: "ciallo"`；省略或传 `"candy"` 仍运行糖果题，
+自动巡检保持糖果题。旧版本可读取历史，但不识别新增判定字段，回滚后请勿
+把 Ciallo 历史当成糖果成绩。

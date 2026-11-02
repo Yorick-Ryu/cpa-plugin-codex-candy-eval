@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"strings"
 )
 
 type persistedState struct {
@@ -127,6 +128,21 @@ func clearHistoryResponse(scope string) managementResponse {
 	defer mu.Unlock()
 	previous := currentState()
 	switch scope {
+	case "method:candy", "method:ciallo":
+		method := strings.TrimPrefix(scope, "method:")
+		kept := map[string][]candyResult{}
+		for id, records := range candyResults {
+			for _, r := range records {
+				m := r.Method
+				if m == "" {
+					m = "candy"
+				}
+				if m != method {
+					kept[id] = append(kept[id], r)
+				}
+			}
+		}
+		candyResults = kept
 	case "detection":
 		detectionResults = map[string][]detectionResult{}
 	case "candy":

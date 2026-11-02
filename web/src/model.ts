@@ -1,6 +1,8 @@
 import type { StatusTone } from "./omc/common/StatusLabel";
-export type Test = "candy" | "detection" | "pelican";
+export type Test = "candy" | "ciallo" | "detection" | "pelican";
 export type RecordData = {
+  method?: string;
+  verdict?: string;
   id?: string;
   time: string;
   model: string;
@@ -59,6 +61,10 @@ export const tests: Record<
     scope: "",
     description: "让模型解一道糖果题，答出 21 即为正确。",
   },
+  ciallo: {
+    label: "Ciallo", field: "results", scope: "",
+    description: "发送 ciallo，按指定回复规则判断通过、未通过或无法判断。仅匹配回复风格，不能确认模型身份或能力。",
+  },
   detection: {
     label: "指纹检测",
     field: "detections",
@@ -81,8 +87,8 @@ export const busy = (a: Credential) =>
 export const available = (a: Credential) =>
   !a.disabled && !busy(a);
 export const progress = (a: Credential, test: Test) =>
-  test === "candy"
-    ? a.running
+  (test === "candy" || test === "ciallo")
+    ? ((a.running?.method || "candy") === test ? a.running : undefined)
     : test === "detection" ? a.detection_running : a.pelican_running;
 
 export const provider = (a: Credential) =>
@@ -121,9 +127,14 @@ export function verdict(
   if (r.status === "cancelled") return { label: "已停止", tone: "neutral" };
   if ((r.error && !(test === "detection" && r.attribution)) || r.status === "failed")
     return {
-      label: test === "candy" ? "请求出错" : "测试失败",
+      label: (test === "candy" || test === "ciallo") ? "请求出错" : "测试失败",
       tone: "danger",
     };
+  if (test === "ciallo" || (test === "candy" && r.method === "ciallo")) {
+    if (r.verdict === "pass") return { label: "Ciallo 通过", tone: "success" };
+    if (r.verdict === "fail") return { label: "Ciallo 未通过", tone: "danger" };
+    return { label: "Ciallo 无法判断", tone: "neutral" };
+  }
   if (test === "candy")
     return { label: r.ok ? "答对" : "答错", tone: r.ok ? "success" : "danger" };
   if (test === "pelican") return { label: "已生成", tone: "success" };
@@ -161,4 +172,11 @@ export function parseState(data: any): Credential[] {
   )
     throw new Error("服务器返回的测试记录格式无效。");
   return data.auths;
+}
+
+export function recordsFor(a: Credential, test: Test): RecordData[] {
+  const records = a[tests[test].field];
+  return test === "candy" || test === "ciallo"
+    ? records.filter(r => (r.method || "candy") === test)
+    : records;
 }

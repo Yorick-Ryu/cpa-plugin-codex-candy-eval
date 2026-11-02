@@ -15,7 +15,7 @@ import (
 
 const (
 	pluginID       = "omcpa-codex-candy-eval"
-	pluginVersion  = "0.4.0-omc.13"
+	pluginVersion  = "0.4.0-omc.14"
 	ABIVersion     = 1
 	schemaVersion  = 6
 	managementBase = "/v0/management/plugins/" + pluginID
@@ -204,6 +204,13 @@ func handleManagement(req managementRequest) managementResponse {
 	case req.Method == http.MethodPost && path == managementBase+"/run":
 		return candyRunResponse(req.Body)
 	case req.Method == http.MethodDelete && path == managementBase+"/results":
+		method := req.Query.Get("method")
+		if method == "ciallo" || method == "candy" {
+			return clearHistoryResponse("method:" + method)
+		}
+		if method != "" {
+			return jsonError(http.StatusBadRequest, "未知测试方法")
+		}
 		return clearHistoryResponse("candy")
 	case req.Method == http.MethodPost && path == managementBase+"/detection/run":
 		return detectionRunResponse(req.Body)

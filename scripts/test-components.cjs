@@ -18,12 +18,17 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     if (error.type !== "not-implemented") errors.push(error.message);
   });
   const requests = [];
+  const channels = [];
   const dom = new JSDOM(page(), {
     url: origin + "/ui",
     runScripts: "dangerously",
     pretendToBeVisual: true,
     virtualConsole,
     beforeParse(window) {
+      // Ant Design scheduling uses MessageChannel in browsers; jsdom omits it.
+      window.MessageChannel = class extends require("node:worker_threads").MessageChannel {
+        constructor() { super(); channels.push(this); }
+      };
       window.TextEncoder = TextEncoder;
       window.localStorage.setItem("omcpa-codex-candy-eval.omc.v2.settings", JSON.stringify({candy:{model:"gpt-6.1-sol",effort:"low",runs:1},pelican:{model:"gpt-6.1-sol",effort:"low"}}));
       window.TextDecoder = TextDecoder;
@@ -102,6 +107,7 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
       ["gpt-5.6-sol", "gpt-6-astra", "gpt-6.1-sol"].sort(),
     );
     assert.equal(run.body.runs, 1);
+    assert.equal(run.body.method, "candy");
     fireEvent.click(role("button", "展开行"));
     await wait(() => assert(body.textContent.includes("历史记录")));
     fireEvent.click(body.querySelector(".history .ant-collapse-header"));
@@ -182,8 +188,20 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
         !queryByRole(body, "dialog", { name: "画鹈鹕详情", exact: true }),
       ),
     );
+    fireEvent.click(role("tab", "Ciallo"));
+    await wait(() => assert(role("tabpanel", "Ciallo")));
+    assert(!queryByRole(body, "combobox", {name:"测试方法"}));
+    assert(!body.textContent.includes("Ciallo 规则（非模型身份鉴定）"));
+    fireEvent.click(role("button", "测试全部 (1)"));
+    await wait(() => assert(requests.some(r => r.path.endsWith("/run") && r.body?.method === "ciallo")));
+    await wait(() => assert(stat("测试中", 1)));
+    await wait(() => assert(stat("可测试", 1)));
+    await wait(() => assert(body.textContent.includes("Ciallo 通过")));
+    assert(!body.textContent.includes("答对"));
     fireEvent.click(role("tab", "糖果题"));
     await wait(() => assert(role("tabpanel", "糖果题")));
+    assert(!body.textContent.includes("Ciallo 通过"));
+    await wait(() => assert(!role("button", "清空糖果题记录").disabled));
     fireEvent.click(role("button", "清空糖果题记录"));
     await wait(() => assert(role("dialog", "清空糖果题记录？")));
     assert.equal(
@@ -224,6 +242,7 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     );
   } finally {
     dom.window.close();
+    for (const channel of channels) { channel.port1.close(); channel.port2.close(); }
     await new Promise((resolve) => server.close(resolve));
     server.closeAllConnections?.();
   }

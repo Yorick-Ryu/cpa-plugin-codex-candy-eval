@@ -24,6 +24,8 @@ const candyPrompt = `不使用任何外部工具回答以下问题：
 `
 
 type candyResult struct {
+	Method          string    `json:"method,omitempty"`
+	Verdict         string    `json:"verdict,omitempty"`
 	Skipped         bool      `json:"skipped,omitempty"`
 	Time            time.Time `json:"time"`
 	Model           string    `json:"model"`
@@ -38,11 +40,13 @@ type candyResult struct {
 }
 
 type candyProgress struct {
-	Done  int `json:"done"`
-	Total int `json:"total"`
+	Method string `json:"method,omitempty"`
+	Done   int    `json:"done"`
+	Total  int    `json:"total"`
 }
 
 type candyRunRequest struct {
+	Method       string              `json:"method,omitempty"`
 	ModelCatalog map[string][]string `json:"model_catalog,omitempty"`
 	AuthIDs      []string            `json:"auth_ids"`
 	All          bool                `json:"all"`
@@ -56,6 +60,9 @@ func candyRunResponse(body []byte) managementResponse {
 	if err := json.Unmarshal(body, &req); err != nil {
 		return jsonError(http.StatusBadRequest, "请求格式错误："+err.Error())
 	}
+	if req.Method != "" && req.Method != "candy" && req.Method != "ciallo" {
+		return jsonError(http.StatusBadRequest, "未知测试方法")
+	}
 	req.Model = strings.TrimSpace(req.Model)
 	req.Effort = strings.TrimSpace(req.Effort)
 	if !validModelName(req.Model, true) {
@@ -64,16 +71,16 @@ func candyRunResponse(body []byte) managementResponse {
 	req.Runs = min(max(req.Runs, 1), candyMaxRuns)
 	return startRuns(req.AuthIDs, req.All, req.ModelCatalog, req.Model,
 		func(id, reason string) {
-			candyResults[id] = appendRecent(candyResults[id], candyResult{Time: time.Now().UTC(), Model: req.Model, Effort: req.Effort, Skipped: true, Error: reason})
+			candyResults[id] = appendRecent(candyResults[id], candyResult{Time: time.Now().UTC(), Method: req.Method, Model: req.Model, Effort: req.Effort, Skipped: true, Error: reason})
 		},
 		func(auth credential) {
-			candyRunning[auth.ID] = &candyProgress{Total: req.Runs}
-			go runCandy(auth, req.Model, req.Effort, req.Runs)
+			candyRunning[auth.ID] = &candyProgress{Total: req.Runs, Method: req.Method}
+			go runCandy(auth, req.Model, req.Effort, req.Runs, req.Method)
 		})
 }
 
 // Each credential runs serially; different credentials run in parallel.
-func runCandy(auth credential, model, effort string, runs int) {
+func runCandy(auth credential, model, effort string, runs int, method string) {
 	id := auth.ID
 	defer tasks.Done()
 	defer func() {
@@ -88,7 +95,7 @@ func runCandy(auth credential, model, effort string, runs int) {
 		if stopping {
 			return
 		}
-		r := evaluateCandy(auth, model, effort)
+		r := evaluateCandyMethod(auth, model, effort, method)
 		mu.Lock()
 		candyResults[id] = appendRecent(candyResults[id], r)
 		candyRunning[id].Done++
@@ -101,8 +108,16 @@ func runCandy(auth credential, model, effort string, runs int) {
 }
 
 func evaluateCandy(auth credential, model, effort string) candyResult {
-	r := candyResult{Time: time.Now().UTC(), Model: model, Effort: effort}
-	out, elapsed, err := askCodex(auth, model, effort, candyPrompt)
+	return evaluateCandyMethod(auth, model, effort, "")
+}
+
+func evaluateCandyMethod(auth credential, model, effort, method string) candyResult {
+	r := candyResult{Time: time.Now().UTC(), Model: model, Effort: effort, Method: method}
+	prompt := candyPrompt
+	if method == "ciallo" {
+		prompt = "ciallo"
+	}
+	out, elapsed, err := askCodex(auth, model, effort, prompt)
 	r.DurationMS = elapsed.Milliseconds()
 	r.InputTokens, r.OutputTokens, r.ReasoningTokens = out.InputTokens, out.OutputTokens, out.ReasoningTokens
 	if err != nil {
@@ -113,7 +128,12 @@ func evaluateCandy(auth credential, model, effort string) candyResult {
 		return r
 	}
 	r.Answer = truncate(out.Answer, 4000)
-	r.OK = hasStandalone21(out.Answer)
+	if method == "ciallo" {
+		r.Verdict = classifyCiallo(out.Answer)
+		r.OK = r.Verdict == "pass"
+	} else {
+		r.OK = hasStandalone21(out.Answer)
+	}
 	return r
 }
 
@@ -126,4 +146,16 @@ func hasStandalone21(text string) bool {
 		}
 	}
 	return false
+}
+
+// classifyCiallo matches a community reply-style rule, not model identity.
+func classifyCiallo(answer string) string {
+	switch strings.TrimSpace(answer) {
+	case "Ciallo~(c・w<)★":
+		return "pass"
+	case "Ciallo!":
+		return "fail"
+	default:
+		return "inconclusive"
+	}
 }

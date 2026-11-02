@@ -131,3 +131,15 @@ globalThis.fetch = originalFetch;
 console.log(
   "React contracts passed: validated state, availability, verdicts, provider grouping, stale authentication.",
 );
+
+assert.equal(verdict({method:"ciallo", verdict:"pass", ok:true}, "candy").label, "Ciallo 通过");
+assert.equal(verdict({method:"ciallo", verdict:"fail", ok:false}, "candy").label, "Ciallo 未通过");
+assert.equal(verdict({method:"ciallo", verdict:"inconclusive", ok:false}, "candy").tone, "neutral");
+assert.equal(verdict({method:"ciallo", error:"timeout"}, "candy").label, "请求出错");
+
+const mixed = {...auth, results:[{ok:true}, {method:"ciallo", verdict:"pass", ok:true}]};
+assert.equal(module.exports.recordsFor(mixed, "candy").length, 1);
+assert.equal(module.exports.recordsFor(mixed, "ciallo")[0].method, "ciallo");
+assert.equal(module.exports.progress({...auth, running:{method:"ciallo", total:1}}, "candy"), undefined);
+assert.equal(module.exports.progress({...auth, running:{method:"ciallo", total:1}}, "ciallo").total, 1);
+assert.equal(verdict({method:"ciallo", verdict:"pass"}, "ciallo").tone, "success");

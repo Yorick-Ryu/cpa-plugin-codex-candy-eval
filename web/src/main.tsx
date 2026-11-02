@@ -1,3 +1,4 @@
+import { recordsFor } from "./model";
 import "./omc/fonts.css";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -26,6 +27,7 @@ import {
 import zhCN from "antd/locale/zh_CN";
 import {
   Candy,
+  Hand,
   Fingerprint,
   Play,
   RefreshCw,
@@ -109,11 +111,13 @@ function usePreference<T>(name: string, fallback: T): [T, (v: T) => void] {
 }
 const emptySelection = () => ({
   candy: [] as React.Key[],
+  ciallo: [] as React.Key[],
   detection: [] as React.Key[],
   pelican: [] as React.Key[],
 });
 const icons = {
   candy: <Candy size={15} />,
+  ciallo: <Hand size={15} aria-hidden="true" />,
   detection: <Fingerprint size={15} />,
   pelican: <Play size={15} />,
 };
@@ -133,6 +137,7 @@ function EvaluationApp() {
   const [switching, setSwitching] = useState<Set<string>>(new Set());
   const [test, setTest] = usePreference<Test>("tab", "candy");
   const active: Test = tests[test] ? test : "candy";
+  const isReplyTest = active === "candy" || active === "ciallo";
   const [masked, setMasked] = usePreference("masked", false);
   const [type, setType] = usePreference("provider", "all");
   const [plan, setPlan] = usePreference("plan", "all");
@@ -181,7 +186,8 @@ function EvaluationApp() {
   const locked = useRef(false);
   const activeAuth = useRef(auth);
   activeAuth.current = auth;
-  const currentSettings = settings[active];
+  const defaultSettings = { model: "gpt-6.1-sol", effort: "low", runs: 1, mode: "quick", concurrency: config.detection.requests };
+  const currentSettings = settings[active] || defaultSettings;
   const logout = useCallback((reason: string) => {
     request.current?.abort();
     clearTimeout(timer.current);
@@ -270,6 +276,7 @@ function EvaluationApp() {
         name === "detection"
           ? models.filter((m) => !/[()]/.test(m))
           : models;
+      if (!next[name]) { next[name] = { ...defaultSettings }; changed = true; }
       if (!list.includes(next[name].model) && list.length) {
         next[name] = {
           ...next[name],
@@ -285,7 +292,7 @@ function EvaluationApp() {
     const controller = new AbortController();
     setDetailData(null);
     setDetailError("");
-    if (detail.test === "candy") {
+    if ((detail.test === "candy" || detail.test === "ciallo")) {
       setDetailData(detail.record);
       return;
     }
@@ -343,9 +350,9 @@ function EvaluationApp() {
           model: snapshot.model,
           model_catalog: await modelCatalog(ids),
         };
-        if (active === "candy" || active === "pelican")
+        if (isReplyTest || active === "pelican")
           body.effort = snapshot.effort;
-        if (active === "candy") body.runs = snapshot.runs;
+        if (isReplyTest) { body.runs = snapshot.runs; body.method = active; }
 
         if (active === "detection") body.concurrency = snapshot.concurrency;
         const result = await api(BASE + tests[active].scope + "/run", {
@@ -420,7 +427,7 @@ function EvaluationApp() {
           )),
     )
     .sort((a, b) => compareCredentialPriority(a, b) || planRank(a) - planRank(b));
-  const hasHistory = (a: Credential) => a[tests[active].field].length > 0;
+  const hasHistory = (a: Credential) => recordsFor(a, active).length > 0;
   const visible = filtered.filter(
     (a) =>
       tile === "all" ||
@@ -441,7 +448,7 @@ function EvaluationApp() {
   };
   const resultCell = (a: Credential) => {
     const p = progress(a, active);
-    const r = a[tests[active].field].at(-1);
+    const r = recordsFor(a, active).at(-1);
     const s = verdict(r, active);
     return (
       <div className="result-cell">
@@ -543,15 +550,16 @@ function EvaluationApp() {
       width: 240,
       render: (_: unknown, a: Credential) => resultCell(a),
     },
-    ...(active === "candy"
+    ...(isReplyTest
       ? [
           {
             title: "正确率",
             key: "rate",
             width: 90,
             render: (_: unknown, a: Credential) => {
-              const graded = a.results.filter(
+              const graded = recordsFor(a, active).filter(
                 (r) =>
+                  r.verdict !== "inconclusive" &&
                   r.model === currentSettings.model &&
                   (r.effort || "none") === currentSettings.effort &&
                   !r.error &&
@@ -576,7 +584,7 @@ function EvaluationApp() {
             width: 160,
             render: (_: unknown, a: Credential) => (
               <div className="result-marks">
-                {a.results.slice(-20).map((r, i) => {
+                {recordsFor(a, active).slice(-20).map((r, i) => {
                   const s = verdict(r, "candy");
                   const dim =
                     r.model !== currentSettings.model ||
@@ -609,7 +617,7 @@ function EvaluationApp() {
             width: 160,
             render: (_: unknown, a: Credential) => (
               <span className="secondary mono">
-                {fmtTime(a[tests[active].field].at(-1)?.time)}
+                {fmtTime(recordsFor(a, active).at(-1)?.time)}
               </span>
             ),
           },
@@ -715,13 +723,13 @@ function EvaluationApp() {
     },
   ];
   const history = (a: Credential) => {
-    const records = [...a[tests[active].field]].reverse();
+    const records = [...recordsFor(a, active)].reverse();
     return records.length ? (
       <div className="history">
         <h3>
           历史记录 <span className="secondary">{records.length}</span>
         </h3>
-        {active === "candy" ? (
+        {isReplyTest ? (
           <Collapse
             items={records.map((r, i) => {
               const s = verdict(r, active);
@@ -792,7 +800,7 @@ function EvaluationApp() {
     const scope = clearTarget === "all" ? "/all" : tests[clearTarget].scope;
     try {
       await execute(
-        () => api(BASE + scope + "/results", { method: "DELETE" }),
+        () => api(BASE + scope + "/results" + (clearTarget === "candy" || clearTarget === "ciallo" ? "?method=" + clearTarget : ""), { method: "DELETE" }),
         "测试记录已清空",
       );
       setClearTarget(null);
@@ -942,16 +950,16 @@ function EvaluationApp() {
             {
               key: "prompt",
               label:
-                active === "candy" || active === "pelican"
+                isReplyTest || active === "pelican"
                   ? "查看题目"
                   : "查看原理",
               children:
-                active === "candy" || active === "pelican" ? (
+                isReplyTest || active === "pelican" ? (
                   <Typography.Paragraph
                     className="prompt-text"
-                    copyable={{ text: promptText(active + "-prompt") }}
+                    copyable={{ text: (active === "ciallo" ? "ciallo" : promptText(active + "-prompt")) }}
                   >
-                    <pre>{promptText(active + "-prompt")}</pre>
+                    <pre>{(active === "ciallo" ? "ciallo" : promptText(active + "-prompt"))}</pre>
                   </Typography.Paragraph>
                 ) : (
                   <div className="principle">
@@ -981,7 +989,7 @@ function EvaluationApp() {
               notFoundContent="模型列表为空，请刷新"
             />
           </Form.Item>
-          {(active === "candy" || active === "pelican") && (
+          {(isReplyTest || active === "pelican") && (
             <Form.Item label="推理强度">
               <Select
                 aria-label="推理强度"
@@ -993,7 +1001,7 @@ function EvaluationApp() {
               />
             </Form.Item>
           )}
-          {active === "candy" && (
+          {isReplyTest && (
             <Form.Item label="每凭证次数">
               <InputNumber
                 aria-label="每凭证次数"
@@ -1035,11 +1043,11 @@ function EvaluationApp() {
         </Form>
       </Card>
       <div className="test-notes">
-        {active === "candy" ? (
+        {isReplyTest ? (
           <>
             <Space size={14} wrap>
-              <StatusLabel tone="success">答对</StatusLabel>
-              <StatusLabel tone="danger">答错 / 请求出错</StatusLabel>
+              <StatusLabel tone="success">{active === "ciallo" ? "通过" : "答对"}</StatusLabel>
+              <StatusLabel tone="danger">{active === "ciallo" ? "未通过 / 请求出错" : "答错 / 请求出错"}</StatusLabel>
               <StatusLabel tone="neutral">已跳过</StatusLabel>
             </Space>
             <span>
@@ -1114,7 +1122,7 @@ function EvaluationApp() {
                 aria-label={`清空${tests[active].label}记录`}
                 icon={<Trash2 size={15} />}
                 disabled={
-                  pending || !auths.some((a) => a[tests[active].field].length)
+                  pending || !auths.some((a) => recordsFor(a, active).length)
                 }
                 onClick={() => setClearTarget(active)}
               />
@@ -1128,7 +1136,7 @@ function EvaluationApp() {
           loading={loading && !loaded}
           columns={columns}
           dataSource={visible}
-          scroll={{ x: active === "candy" ? 1060 : 970 }}
+          scroll={{ x: isReplyTest ? 1060 : 970 }}
           pagination={false}
           rowSelection={{
             selectedRowKeys: selected[active],
@@ -1140,7 +1148,7 @@ function EvaluationApp() {
           }}
           expandable={{
             expandedRowRender: history,
-            rowExpandable: (a) => a[tests[active].field].length > 0,
+            rowExpandable: (a) => recordsFor(a, active).length > 0,
           }}
           locale={{
             emptyText: (
