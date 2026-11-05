@@ -17,6 +17,6 @@ Regression checks cover all three production examples, uppercase and punctuation
 whole-word false matches, conflicting greetings, current/history agreement,
 non-mutating history projection and unchanged non-answer/candy records.
 
-Build and deployment receipts are recorded after validation. No account-ops
+[Successful build and deployment](deployment.md) include checksums and rollback. No account-ops
 worker change or restart is needed. Rollback restores only this plugin's store
 pin to the previous library; the history schema is unchanged.

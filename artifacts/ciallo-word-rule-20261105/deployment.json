@@ -1,0 +1,20 @@
+{
+  "source_commit": "720df18c85d1e91774bbb0c54700a8662e15e20e",
+  "filename": "omcpa-codex-candy-eval-v0.4.5-omc.2.so",
+  "sha256": "3de5c66978091172e6b38abb329e51411d47c81a629711780c34e1ae3d8ecffa",
+  "previous_library_sha256": "3cd4ba30bc66c9323fcab64895382c2df3e79db37d9d7cc827cb101e20887561",
+  "build_method": "go c-shared with zig cc x86_64-linux-gnu.2.17 from clean committed source",
+  "version": "0.4.5-omc.2",
+  "verified_at": "2026-11-05T02:19:48.836911+00:00",
+  "backup": "/opt/stacks/cpa/ciallo-word-rule-20261105T021946Z",
+  "hot_replaced": true,
+  "containers_unchanged": true,
+  "workers_unchanged": true,
+  "history_file_unchanged": true,
+  "historical_verdicts_corrected": 3,
+  "release_workflow": {
+    "id": 41954319626,
+    "conclusion": "success",
+    "url": "https://github.com/Yorick-Ryu/cpa-plugin-codex-candy-eval/actions/runs/41954319626"
+  }
+}

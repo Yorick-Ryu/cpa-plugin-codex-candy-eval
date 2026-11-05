@@ -1,0 +1,13 @@
+{
+  "status": "correct",
+  "verdict": "pass",
+  "verdict_rule": "ciallo-word-v1",
+  "has_error": false,
+  "attempts": 1,
+  "duration_ms": 3368,
+  "input_tokens": 14103,
+  "output_tokens": 17,
+  "persisted": true,
+  "record_id": "1793845233640632435",
+  "account_fingerprint": "62efffdada50"
+}
