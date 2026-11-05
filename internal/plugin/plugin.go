@@ -16,7 +16,7 @@ import (
 
 const (
 	pluginID      = "omcpa-codex-candy-eval"
-	pluginVersion = "0.4.5-omc.1"
+	pluginVersion = "0.4.5-omc.2"
 	ABIVersion    = 1
 	// rpcSchemaVersion is the version of CPA's plugin RPC contract, not of the state file.
 	rpcSchemaVersion = 6
@@ -273,6 +273,9 @@ func stateResponse() managementResponse {
 			Candies:      append([]candyRecord{}, records.Candies[auth.ID]...),
 			Fingerprints: summaries(records.Fingerprints[auth.ID]),
 			Pelicans:     summaries(records.Pelicans[auth.ID]),
+		}
+		for j, r := range views[i].Candies {
+			views[i].Candies[j] = withCialloVerdict(r)
 		}
 	}
 	return jsonResponse(http.StatusOK, map[string]any{"credentials": views, "storage_error": storageError})

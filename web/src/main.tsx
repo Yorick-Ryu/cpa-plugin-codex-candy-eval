@@ -554,13 +554,13 @@ function EvaluationApp() {
     ...(isReplyTest
       ? [
           {
-            title: "正确率",
+            title: active === "ciallo" ? "通过率" : "正确率",
             key: "rate",
             width: 90,
             render: (_: unknown, a: Credential) => {
               const graded = recordsFor(a, active).filter(
                 (r) =>
-                  r.verdict !== "inconclusive" &&
+                  (active !== "ciallo" || r.verdict === "pass" || r.verdict === "fail") &&
                   r.model === currentSettings.model &&
                   (r.effort || "none") === currentSettings.effort &&
                   !r.error &&
@@ -586,7 +586,7 @@ function EvaluationApp() {
             render: (_: unknown, a: Credential) => (
               <div className="result-marks">
                 {recordsFor(a, active).slice(-20).map((r, i) => {
-                  const s = verdict(r, "candy");
+                  const s = verdict(r, active);
                   const dim =
                     r.model !== currentSettings.model ||
                     (r.effort || "none") !== currentSettings.effort;
@@ -1059,7 +1059,7 @@ function EvaluationApp() {
               <StatusLabel tone="neutral">已跳过</StatusLabel>
             </Space>
             <span>
-              正确率按 {currentSettings.model} ({currentSettings.effort}) 统计
+              {active === "ciallo" ? "通过率" : "正确率"}按 {currentSettings.model} ({currentSettings.effort}) 统计
             </span>
           </>
         ) : (

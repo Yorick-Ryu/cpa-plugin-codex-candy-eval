@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -19,14 +20,16 @@ const candyPrompt = `不使用任何外部工具回答以下问题：
 五角星形   7      6      4
 `
 
-// candyRecord is one graded answer: its status is correct, wrong, failed or skipped.
+// candyRecord is one graded answer: correct, wrong, failed or skipped. A Ciallo
+// reply without a unique greeting word is inconclusive.
 type candyRecord struct {
 	record
-	Method   string `json:"method,omitempty"`
-	Verdict  string `json:"verdict,omitempty"`
-	Effort   string `json:"effort"`
-	Answer   string `json:"answer,omitempty"`
-	Attempts int    `json:"attempts,omitempty"`
+	Method      string `json:"method,omitempty"`
+	Verdict     string `json:"verdict,omitempty"`
+	VerdictRule string `json:"verdict_rule,omitempty"`
+	Effort      string `json:"effort"`
+	Answer      string `json:"answer,omitempty"`
+	Attempts    int    `json:"attempts,omitempty"`
 }
 
 type candyRunRequest struct {
@@ -101,11 +104,7 @@ func evaluateCandyMethod(ctx context.Context, auth credential, model, effort, me
 		r.Status, r.Answer = "wrong", truncate(out.Answer, 4000)
 	}
 	if err == nil && method == "ciallo" {
-		r.Verdict = classifyCiallo(out.Answer)
-		r.Status = "wrong"
-		if r.Verdict == "pass" {
-			r.Status = "correct"
-		}
+		return withCialloVerdict(r)
 	}
 	return r
 }
@@ -121,14 +120,47 @@ func hasStandalone21(text string) bool {
 	return false
 }
 
-// classifyCiallo matches a community reply-style rule, not model identity.
+const cialloVerdictRule = "ciallo-word-v1"
+
+var replyWords = regexp.MustCompile(`[\p{L}\p{N}_]+`)
+
+// classifyCiallo compares whole greeting words, ignoring case and surrounding
+// punctuation/emoji. Neither a substring nor conflicting greetings has a verdict.
 func classifyCiallo(answer string) string {
-	answer = strings.TrimSpace(answer)
-	if strings.Contains(answer, "Ciallo~(c・w<)★") {
+	ciallo, ciao := false, false
+	for _, word := range replyWords.FindAllString(strings.ToLower(answer), -1) {
+		switch word {
+		case "ciallo":
+			ciallo = true
+		case "ciao":
+			ciao = true
+		}
+	}
+	switch {
+	case ciallo && !ciao:
 		return "pass"
-	}
-	if strings.Contains(answer, "Ciallo!") {
+	case ciao && !ciallo:
 		return "fail"
+	default:
+		return "inconclusive"
 	}
-	return "inconclusive"
+}
+
+// withCialloVerdict derives grading from the saved answer. State responses apply
+// the current rule to historical copies, preserving original evidence on disk.
+// Request failures and skipped/cancelled runs are never reclassified as answers.
+func withCialloVerdict(r candyRecord) candyRecord {
+	if r.Method != "ciallo" || r.Error != "" || (r.Status != "correct" && r.Status != "wrong" && r.Status != "inconclusive") {
+		return r
+	}
+	r.Verdict, r.VerdictRule = classifyCiallo(r.Answer), cialloVerdictRule
+	switch r.Verdict {
+	case "pass":
+		r.Status = "correct"
+	case "fail":
+		r.Status = "wrong"
+	default:
+		r.Status = "inconclusive"
+	}
+	return r
 }

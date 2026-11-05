@@ -157,3 +157,13 @@ for (const [prefix, scope] of [["enc::v1::", "fixture.test|fixture-agent"], ["en
 }
 globalThis.localStorage = {getItem: () => "enc::v2::invalid"};
 assert.equal(initialKey(), "fallback");
+
+// The native state projects historical Ciallo replies through the current rule.
+for (const answer of ["Ciallo! 👋 What can I help you with?", "Ciallo～ 👋", "Ciallo～ 👋 What can I help you with?"]) {
+  const rows = parseState({credentials:[{...auth,candies:[{method:"ciallo",answer,status:"correct",verdict:"pass",verdict_rule:"ciallo-word-v1"}],fingerprints:[]}]});
+  const record = module.exports.recordsFor(rows[0], "ciallo")[0];
+  assert.equal(verdict(record,"ciallo").label,"Ciallo 通过");
+  assert.equal(record.ok,true);
+  assert.equal(record.answer,answer);
+}
+assert.equal(verdict({method:"ciallo",status:"inconclusive",verdict:"inconclusive"},"ciallo").tone,"neutral");

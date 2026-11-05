@@ -35,6 +35,7 @@ export function RecordMeta({ record: r }: { record: RecordData }) {
     <div className="record-meta">
       <span>{fmtTime(r.time)}</span>
       {r.method && <span>{r.method === "ciallo" ? "Ciallo 回复规则" : "糖果题"}</span>}
+      {r.verdict_rule && <span>按 ciallo / ciao 词语规则判定</span>}
       <span>
         {r.model}
         {r.effort ? ` · ${r.effort}` : ""}

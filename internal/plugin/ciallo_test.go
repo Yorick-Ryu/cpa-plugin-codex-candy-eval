@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"testing"
@@ -9,16 +10,22 @@ import (
 
 func TestClassifyCiallo(t *testing.T) {
 	for _, tc := range []struct{ answer, want string }{
+		{"Ciallo! 👋 What can I help you with?", "pass"},
+		{"Ciallo～ 👋", "pass"},
+		{"Ciallo～ 👋 What can I help you with?", "pass"},
+		{"Ciallo～(∠・ω<)⌒☆", "pass"},
 		{"Ciallo~(c・w<)★", "pass"},
-		{" \nCiallo~(c・w<)★\n", "pass"},
-		{"Ciallo!", "fail"},
+		{" \nCIALLO！\n", "pass"},
+		{"ciallo", "pass"},
+		{"Ciao! 👋 What can I help you with?", "fail"},
+		{"CIAO～", "fail"},
+		{"Ciallo! Ciao!", "inconclusive"},
+		{"Ciao! Ciallo~(c・w<)★", "inconclusive"},
+		{"speciallover", "inconclusive"},
+		{"ciallo123", "inconclusive"},
+		{"ciao_world", "inconclusive"},
 		{"", "inconclusive"},
-		{"Ciallo！", "inconclusive"},
-		{"Ciallo~(∠・ω< )⌒★", "inconclusive"},
-		{"Ciallo~(c・w<)★，这是我的回复", "pass"},
-		{"答案：Ciallo!（降智）", "fail"},
-		{"Ciallo! Ciallo~(c・w<)★", "pass"},
-		{"The expected answer is Ciallo~(c・w<)★", "pass"},
+		{"Hello!", "inconclusive"},
 	} {
 		if got := classifyCiallo(tc.answer); got != tc.want {
 			t.Errorf("%q: got %s, want %s", tc.answer, got, tc.want)
@@ -87,6 +94,49 @@ func TestCialloRunsThroughNewEndpoint(t *testing.T) {
 	for _, path := range []string{"/run", "/results", "/detection/run"} {
 		if r := handleManagement(managementRequest{Method: http.MethodPost, Path: managementBase + path}); r.StatusCode != http.StatusNotFound {
 			t.Fatalf("old route still served: %s", path)
+		}
+	}
+}
+
+func TestCialloNativeAndHistoricalGradingAgree(t *testing.T) {
+	setupTest(t)
+	auth := credential{ID: "a", Provider: "codex"}
+	answers := []string{"Ciallo! 👋 What can I help you with?", "Ciallo～ 👋", "Ciallo～ 👋 What can I help you with?", "Ciao!", "Ciallo or ciao", "Hello!"}
+	statuses := []string{"correct", "correct", "correct", "wrong", "inconclusive", "inconclusive"}
+	for i, answer := range answers {
+		hostCall = streamHost(func(_ string, _ any) (json.RawMessage, error) { return mockModelResponse(answer), nil })
+		actual := evaluateCandyMethod(context.Background(), auth, "m", "low", "ciallo")
+		original := candyRecord{record: record{Status: "wrong", Model: "m"}, Method: "ciallo", Verdict: "fail", Answer: answer}
+		records.Candies["a"] = []candyRecord{original}
+		hostCall = func(string, any) (json.RawMessage, error) {
+			return json.RawMessage(`{"files":[{"id":"a","provider":"codex"}]}`), nil
+		}
+		response := stateResponse()
+		var state struct {
+			Credentials []credentialView `json:"credentials"`
+		}
+		if err := json.Unmarshal(response.Body, &state); err != nil || response.StatusCode != 200 {
+			t.Fatalf("state: %s", response.Body)
+		}
+		historical := state.Credentials[0].Candies[0]
+		if actual.Status != statuses[i] || historical.Status != actual.Status || historical.Verdict != actual.Verdict || historical.VerdictRule != cialloVerdictRule || historical.Answer != answer {
+			t.Fatalf("%q: current=%+v historical=%+v", answer, actual, historical)
+		}
+		if records.Candies["a"][0] != original {
+			t.Fatal("history projection rewrote saved evidence")
+		}
+	}
+}
+
+func TestCialloRegradingPreservesNonAnswersAndCandy(t *testing.T) {
+	for _, r := range []candyRecord{
+		{record: record{Status: "skipped"}, Method: "ciallo", Answer: "ciallo"},
+		{record: record{Status: "failed", Error: "401 unauthorized"}, Method: "ciallo", Answer: "ciallo"},
+		{record: record{Status: "cancelled"}, Method: "ciallo", Answer: "ciallo"},
+		{record: record{Status: "correct"}, Method: "candy", Answer: "21"},
+	} {
+		if got := withCialloVerdict(r); got != r {
+			t.Fatalf("changed non-answer or candy: %+v", got)
 		}
 	}
 }

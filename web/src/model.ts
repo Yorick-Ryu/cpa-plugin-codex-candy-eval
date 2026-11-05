@@ -3,6 +3,7 @@ export type Test = "candy" | "ciallo" | "detection" | "pelican";
 export type RecordData = {
   method?: string;
   verdict?: string;
+  verdict_rule?: string;
   id?: string;
   time: string;
   model: string;
@@ -63,7 +64,7 @@ export const tests: Record<
   },
   ciallo: {
     label: "Ciallo", field: "results", scope: "/candy",
-    description: "发送 ciallo，按指定回复规则判断通过、未通过或无法判断。仅匹配回复风格，不能确认模型身份或能力。",
+    description: "发送 ciallo，回复含独立词 ciallo 为通过，含 ciao 为未通过，忽略大小写、标点和表情；两者都有或都没有则无法判断。历史按当前规则显示，原回复保留。仅供娱乐，不能确认模型身份或能力。",
   },
   detection: {
     label: "指纹检测",
