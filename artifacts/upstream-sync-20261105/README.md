@@ -12,8 +12,7 @@
   `node scripts/test-react.mjs`, `node scripts/test-components.cjs`,
   `node scripts/test-theme.cjs`, `go vet ./...`, `go test -race ./...`.
   All passed against local synthetic fixtures; no production evaluations ran.
-  `scripts/test-ui.cjs` targets upstream's vanilla UI and is superseded by the
-  React/component/theme checks for this fork.
+  Additional release preflight: `node scripts/test-ui.cjs` passed too.
 - Compatibility: history migration retains candy/Ciallo, fingerprint and pelican
   records and writes the original state beside the live file as `.v0.json`.
   An older plugin cannot read schema v2; reverting after a future rollout requires
