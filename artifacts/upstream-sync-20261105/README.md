@@ -18,6 +18,5 @@
   An older plugin cannot read schema v2; reverting after a future rollout requires
   restoring its matching pre-migration state too. New records would remain only
   in the saved v2 state. Older clients must move to the new API.
-- Deployment: none. No release, server changes, restart, or remote push performed.
-  This directory records source integration only; deployment requires separate
-  host-specific validation and authorization.
+- At merge time: source integration only. Subsequent release and authorized
+  Clouvider rollout: [deployment record](deployment.md).

@@ -1,0 +1,29 @@
+{
+  "candy_commit": "2197d84299eea0ee2a9f83ad72231c415e8fd6f5",
+  "worker_commit": "ffd155da2492c631544c7d8d0a86d02da7e18ecb",
+  "build_run_id": 41952605008,
+  "library_filename": "omcpa-codex-candy-eval-v0.4.5-omc.1.so",
+  "library_sha256": "3cd4ba30bc66c9323fcab64895382c2df3e79db37d9d7cc827cb101e20887561",
+  "verified_at": "2026-11-05T02:10:02.628396+00:00",
+  "backup": "/opt/stacks/cpa/candy-v045-20261105T020953Z",
+  "worker_release": "/opt/cpa-account-ops/releases/20261105-candy-v045-ffd155d",
+  "previous_worker_release": "/opt/cpa-account-ops/releases/20261104-request-recovery-ad1ec2f",
+  "worker_pid_before": "2792428",
+  "worker_pid_after": "3423168",
+  "containers_unchanged": true,
+  "cpr_worker_unchanged": true,
+  "history_preserved": true,
+  "hot_replaced": true,
+  "version": "0.4.5-omc.1",
+  "single_account_test": {
+    "status": "correct",
+    "has_error": false,
+    "attempts": 1,
+    "duration_ms": 23097,
+    "input_tokens": 14298,
+    "output_tokens": 743,
+    "persisted": true,
+    "record_id": "1793844648565369138",
+    "account_fingerprint": "62efffdada50"
+  }
+}
