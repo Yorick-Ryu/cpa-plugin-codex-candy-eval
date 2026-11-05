@@ -25,13 +25,13 @@ const auth = {
   detections: [],
   pelicans: [],
 };
-assert.equal(parseState({ auths: [auth] })[0].id, "synthetic");
+assert.equal(parseState({ credentials: [{...auth, candies: [], fingerprints: []}] })[0].id, "synthetic");
 for (const malformed of [
   null,
   {},
   [],
-  { auths: [{ ...auth, results: null }] },
-  { auths: [{ ...auth, pelicans: [null] }] },
+  { credentials: [{ ...auth, candies: null, fingerprints: [] }] },
+  { credentials: [{ ...auth, candies: [], fingerprints: [], pelicans: [null] }] },
 ])
   assert.throws(() => parseState(malformed));
 assert.equal(available(auth), true);
@@ -143,3 +143,17 @@ assert.equal(module.exports.recordsFor(mixed, "ciallo")[0].method, "ciallo");
 assert.equal(module.exports.progress({...auth, running:{method:"ciallo", total:1}}, "candy"), undefined);
 assert.equal(module.exports.progress({...auth, running:{method:"ciallo", total:1}}, "ciallo").total, 1);
 assert.equal(verdict({method:"ciallo", verdict:"pass"}, "ciallo").tone, "success");
+
+const { initialKey } = apiModule.exports;
+globalThis.location = {host: "fixture.test"};
+Object.defineProperty(globalThis, "navigator", {value: {userAgent: "fixture-agent"}, configurable: true});
+globalThis.sessionStorage = {getItem: () => "fallback"};
+for (const [prefix, scope] of [["enc::v1::", "fixture.test|fixture-agent"], ["enc::v2::", "fixture.test"], ["enc::v2::", "v2|fixture.test"]]) {
+  const secret = new TextEncoder().encode("cli-proxy-api-webui::secure-storage|" + scope);
+  const bytes = new TextEncoder().encode(JSON.stringify({state:{managementKey:"synthetic-panel"}}));
+  const encoded = Buffer.from(bytes.map((b,i) => b ^ secret[i % secret.length])).toString("base64");
+  globalThis.localStorage = {getItem: () => prefix + encoded};
+  assert.equal(initialKey(), "synthetic-panel");
+}
+globalThis.localStorage = {getItem: () => "enc::v2::invalid"};
+assert.equal(initialKey(), "fallback");

@@ -2,6 +2,7 @@
 package plugin
 
 import (
+	"context"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -14,12 +15,13 @@ import (
 )
 
 const (
-	pluginID       = "omcpa-codex-candy-eval"
-	pluginVersion  = "0.4.0-omc.15"
-	ABIVersion     = 1
-	schemaVersion  = 6
-	managementBase = "/v0/management/plugins/" + pluginID
-	uiPath         = "/v0/resource/plugins/" + pluginID + "/ui"
+	pluginID      = "omcpa-codex-candy-eval"
+	pluginVersion = "0.4.5-omc.1"
+	ABIVersion    = 1
+	// rpcSchemaVersion is the version of CPA's plugin RPC contract, not of the state file.
+	rpcSchemaVersion = 6
+	managementBase   = "/v0/management/plugins/" + pluginID
+	uiPath           = "/v0/resource/plugins/" + pluginID + "/ui"
 )
 
 var hostCall func(method string, payload any) (json.RawMessage, error)
@@ -63,13 +65,14 @@ var omcLicense string
 
 var uiHTML = func() []byte {
 	config, _ := json.Marshal(map[string]any{
-		"detection": map[string]any{"requests": detectionTarget, "aliases": detectionAliases},
+		"detection":        map[string]any{"requests": fingerprintTarget, "aliases": fingerprintAliases},
+		"pelican_variants": pelicanVariants,
 	})
 	return []byte(strings.NewReplacer(
 		"/*APP_STYLES*/", temmlStyles+"\n"+uiThemes+"\n"+uiStyles,
 		"<!--PLUGIN_VERSION-->", pluginVersion,
 		"<!--CANDY_PROMPT-->", html.EscapeString(candyPrompt),
-		"<!--PELICAN_PROMPT-->", html.EscapeString(pelicanPrompt),
+		"<!--PELICAN_PROMPT-->", html.EscapeString(pelicanVariants[0].Prompt),
 		"<!--DETECTOR_LICENSE-->", "<!-- LM Fingerpoint Detector\n"+detectorLicense+"-->",
 		"<!--OMC_LICENSE-->", "<!-- Oh My CPA components\n"+omcLicense+"-->",
 		"/*REACT_CONFIG*/{}", string(config),
@@ -88,9 +91,10 @@ var browserPage = splitStaticPage(uiHTML)
 const logoSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#72787c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><style>@media (prefers-color-scheme: dark) { :root { stroke: #9c9d9b; } }</style><path d="M10 7v10.9"/><path d="M14 6.1V17"/><path d="M16 7V3a1 1 0 0 1 1.707-.707 2.5 2.5 0 0 0 2.152.717 1 1 0 0 1 1.131 1.131 2.5 2.5 0 0 0 .717 2.152A1 1 0 0 1 21 8h-4"/><path d="M16.536 7.465a5 5 0 0 0-7.072 0l-2 2a5 5 0 0 0 0 7.07 5 5 0 0 0 7.072 0l2-2a5 5 0 0 0 0-7.07"/><path d="M8 17v4a1 1 0 0 1-1.707.707 2.5 2.5 0 0 0-2.152-.717 1 1 0 0 1-1.131-1.131 2.5 2.5 0 0 0-.717-2.152A1 1 0 0 1 3 16h4"/></svg>`
 
 var (
-	mu        sync.Mutex
-	tasks     sync.WaitGroup
-	quiescing bool
+	mu    sync.Mutex
+	tasks sync.WaitGroup
+	// runCtx carries every test run; Quiesce ends it and the next registration renews it.
+	runCtx, stopRuns = context.WithCancel(context.Background())
 )
 
 type Envelope struct {
@@ -130,14 +134,16 @@ func HandleMethod(method string, request []byte) (response []byte) {
 	case "plugin.register", "plugin.reconfigure":
 		loadState()
 		mu.Lock()
-		quiescing = false
+		if runCtx.Err() != nil {
+			runCtx, stopRuns = context.WithCancel(context.Background())
+		}
 		mu.Unlock()
 		return okEnvelope(map[string]any{
-			"schema_version": schemaVersion,
+			"schema_version": rpcSchemaVersion,
 			"metadata": map[string]any{
 				"Name":             pluginID,
 				"Version":          pluginVersion,
-				"Author":           "Yorick-Ryu / haowang02",
+				"Author":           "haowang02 / Yorick-Ryu",
 				"GitHubRepository": "https://github.com/Yorick-Ryu/cpa-plugin-codex-candy-eval",
 				"Logo":             "data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString([]byte(logoSVG)),
 				"ConfigFields":     []any{},
@@ -145,23 +151,12 @@ func HandleMethod(method string, request []byte) (response []byte) {
 			"capabilities": map[string]bool{"management_api": true},
 		})
 	case "management.register":
+		registered := make([]map[string]string, len(routes))
+		for i, r := range routes {
+			registered[i] = map[string]string{"Method": r.method, "Path": managementBase + r.path, "Description": r.description}
+		}
 		return okEnvelope(map[string]any{
-			"routes": []map[string]string{
-				{"Method": http.MethodPost, "Path": managementBase + "/credentials/sync", "Description": "Sync configured credential identities"},
-				{"Method": http.MethodGet, "Path": managementBase + "/state", "Description": "View credential test results"},
-				{"Method": http.MethodPost, "Path": managementBase + "/run", "Description": "Run the candy test on credentials"},
-				{"Method": http.MethodDelete, "Path": managementBase + "/results", "Description": "Clear candy test results"},
-				{"Method": http.MethodPost, "Path": managementBase + "/detection/run", "Description": "Run fingerprint detection on credentials"},
-				{"Method": http.MethodPost, "Path": managementBase + "/detection/cancel", "Description": "Stop fingerprint detection"},
-				{"Method": http.MethodGet, "Path": managementBase + "/detection/record", "Description": "View a fingerprint detection record"},
-				{"Method": http.MethodDelete, "Path": managementBase + "/detection/results", "Description": "Clear fingerprint detection history"},
-				{"Method": http.MethodPost, "Path": managementBase + "/pelican/run", "Description": "Run the pelican test on credentials"},
-				{"Method": http.MethodGet, "Path": managementBase + "/pelican/record", "Description": "View a pelican animation"},
-				{"Method": http.MethodDelete, "Path": managementBase + "/pelican/results", "Description": "Clear pelican history"},
-				{"Method": http.MethodDelete, "Path": managementBase + "/all/results", "Description": "Clear all test history"},
-				{"Method": http.MethodPost, "Path": managementBase + "/inspection", "Description": "Inspect credentials with the candy test or fingerprint detection"},
-				{"Method": http.MethodGet, "Path": managementBase + "/inspection", "Description": "View the latest inspection of a test"},
-			},
+			"routes":    registered,
 			"resources": browserPage.resources("降智测试", "通过糖果题、指纹检测和画鹈鹕检测 CPA 凭证"),
 		})
 	case "management.handle":
@@ -178,6 +173,49 @@ func HandleMethod(method string, request []byte) (response []byte) {
 	}
 }
 
+// route is a management endpoint below managementBase, registered with CPA and served by handleManagement.
+type route struct {
+	method, path, description string
+	handle                    func(managementRequest) managementResponse
+}
+
+var routes = func() []route {
+	withBody := func(handle func([]byte) managementResponse) func(managementRequest) managementResponse {
+		return func(req managementRequest) managementResponse { return handle(req.Body) }
+	}
+	viewRecord := func(test string) func(managementRequest) managementResponse {
+		return func(req managementRequest) managementResponse { return recordResponse(test, req.Query) }
+	}
+	clearRecords := func(test string) func(managementRequest) managementResponse {
+		return func(managementRequest) managementResponse { return clearRecordsResponse(test) }
+	}
+	return []route{
+		{http.MethodPost, "/credentials/sync", "Sync configured credential identities", withBody(syncCredentialsResponse)},
+		{http.MethodGet, "/state", "View credentials with their test records", func(managementRequest) managementResponse { return stateResponse() }},
+		{http.MethodPost, "/cancel", "Stop the tests running on credentials", withBody(cancelResponse)},
+		{http.MethodDelete, "/records", "Clear the records of every test", clearRecords("all")},
+		{http.MethodPost, "/candy/run", "Run the candy test on credentials", withBody(candyRunResponse)},
+		{http.MethodDelete, "/candy/records", "Clear candy test records", func(req managementRequest) managementResponse {
+			method := req.Query.Get("method")
+			if method == "" {
+				return clearRecordsResponse("candy")
+			}
+			if method != "ciallo" && method != "candy" {
+				return jsonError(http.StatusBadRequest, "未知测试方法")
+			}
+			return clearRecordsResponse("method:" + method)
+		}},
+		{http.MethodPost, "/fingerprint/run", "Run fingerprint detection on credentials", withBody(fingerprintRunResponse)},
+		{http.MethodGet, "/fingerprint/record", "View a fingerprint detection record", viewRecord("fingerprint")},
+		{http.MethodDelete, "/fingerprint/records", "Clear fingerprint detection records", clearRecords("fingerprint")},
+		{http.MethodPost, "/pelican/run", "Run the pelican test on credentials", withBody(pelicanRunResponse)},
+		{http.MethodGet, "/pelican/record", "View a pelican test record", viewRecord("pelican")},
+		{http.MethodDelete, "/pelican/records", "Clear pelican test records", clearRecords("pelican")},
+		{http.MethodPost, "/inspection", "Inspect credentials with the candy test or fingerprint detection", withBody(inspectionRunResponse)},
+		{http.MethodGet, "/inspection", "View the latest inspection of a test", func(req managementRequest) managementResponse { return inspectionResponse(req.Query.Get("test")) }},
+	}
+}()
+
 func handleManagement(req managementRequest) managementResponse {
 	if req.Method == http.MethodGet {
 		if asset, ok := browserPage.assets[req.Path]; ok {
@@ -185,8 +223,7 @@ func handleManagement(req managementRequest) managementResponse {
 		}
 	}
 	path := strings.TrimRight(req.Path, "/")
-	switch {
-	case req.Method == http.MethodGet && path == uiPath:
+	if req.Method == http.MethodGet && path == uiPath {
 		return managementResponse{
 			StatusCode: http.StatusOK,
 			Headers: http.Header{
@@ -197,44 +234,22 @@ func handleManagement(req managementRequest) managementResponse {
 			},
 			Body: browserPage.document,
 		}
-	case req.Method == http.MethodPost && path == managementBase+"/credentials/sync":
-		return syncCredentialsResponse(req.Body)
-	case req.Method == http.MethodGet && path == managementBase+"/state":
-		return stateResponse()
-	case req.Method == http.MethodPost && path == managementBase+"/run":
-		return candyRunResponse(req.Body)
-	case req.Method == http.MethodDelete && path == managementBase+"/results":
-		method := req.Query.Get("method")
-		if method == "ciallo" || method == "candy" {
-			return clearHistoryResponse("method:" + method)
-		}
-		if method != "" {
-			return jsonError(http.StatusBadRequest, "未知测试方法")
-		}
-		return clearHistoryResponse("candy")
-	case req.Method == http.MethodPost && path == managementBase+"/detection/run":
-		return detectionRunResponse(req.Body)
-	case req.Method == http.MethodPost && path == managementBase+"/detection/cancel":
-		return detectionCancelResponse(req.Body)
-	case req.Method == http.MethodGet && path == managementBase+"/detection/record":
-		return recordResponse("detection", req.Query)
-	case req.Method == http.MethodDelete && path == managementBase+"/detection/results":
-		return clearHistoryResponse("detection")
-	case req.Method == http.MethodPost && path == managementBase+"/pelican/run":
-		return pelicanRunResponse(req.Body)
-	case req.Method == http.MethodGet && path == managementBase+"/pelican/record":
-		return recordResponse("pelican", req.Query)
-	case req.Method == http.MethodDelete && path == managementBase+"/pelican/results":
-		return clearHistoryResponse("pelican")
-	case req.Method == http.MethodDelete && path == managementBase+"/all/results":
-		return clearHistoryResponse("all")
-	case req.Method == http.MethodPost && path == managementBase+"/inspection":
-		return inspectionRunResponse(req.Body)
-	case req.Method == http.MethodGet && path == managementBase+"/inspection":
-		return inspectionResponse(req.Query.Get("test"))
-	default:
-		return jsonError(http.StatusNotFound, "Route not found: "+req.Method+" "+req.Path)
 	}
+	for _, r := range routes {
+		if req.Method == r.method && path == managementBase+r.path {
+			return r.handle(req)
+		}
+	}
+	return jsonError(http.StatusNotFound, "Route not found: "+req.Method+" "+req.Path)
+}
+
+// credentialView is a credential with the test it runs and the summaries of its records.
+type credentialView struct {
+	credential
+	Running      *progress           `json:"running,omitempty"`
+	Candies      []candyRecord       `json:"candies"`
+	Fingerprints []fingerprintRecord `json:"fingerprints"`
+	Pelicans     []pelicanRecord     `json:"pelicans"`
 }
 
 func stateResponse() managementResponse {
@@ -242,7 +257,7 @@ func stateResponse() managementResponse {
 	if err != nil {
 		return jsonError(http.StatusBadGateway, err.Error())
 	}
-	// Host calls must stay outside the results lock.
+	// Host calls must stay outside the records lock.
 	for i := range auths {
 		if auths[i].Source == credentialSourceFile && auths[i].Provider == "codex" {
 			auths[i].PlanType = authPlanType(auths[i])
@@ -250,36 +265,32 @@ func stateResponse() managementResponse {
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	views := make([]credentialView, 0, len(auths))
-	for _, auth := range auths {
-		view := credentialView{credential: auth, Results: candyResults[auth.ID]}
-		if view.Results == nil {
-			view.Results = []candyResult{}
+	views := make([]credentialView, len(auths))
+	for i, auth := range auths {
+		views[i] = credentialView{
+			credential:   auth,
+			Running:      running[auth.ID],
+			Candies:      append([]candyRecord{}, records.Candies[auth.ID]...),
+			Fingerprints: summaries(records.Fingerprints[auth.ID]),
+			Pelicans:     summaries(records.Pelicans[auth.ID]),
 		}
-		view.Running = candyRunning[auth.ID]
-		view.DetectionRunning = detectionRunning[auth.ID]
-		view.Detections = summaries(detectionResults[auth.ID])
-		view.PelicanRunning = pelicanRunning[auth.ID]
-		view.Pelicans = summaries(pelicanResults[auth.ID])
-		views = append(views, view)
 	}
-	return jsonResponse(http.StatusOK, map[string]any{"auths": views, "storage_error": storageError})
+	return jsonResponse(http.StatusOK, map[string]any{"credentials": views, "storage_error": storageError})
 }
 
-func summaries[T interface{ summary() T }](records []T) []T {
-	out := make([]T, len(records))
-	for i, record := range records {
-		out[i] = record.summary()
+func summaries[T interface{ summary() T }](list []T) []T {
+	out := make([]T, len(list))
+	for i, r := range list {
+		out[i] = r.summary()
 	}
 	return out
 }
 
 func Quiesce() {
 	mu.Lock()
-	quiescing = true
-	for _, p := range detectionRunning {
-		p.Phase = "cancelling"
-		p.cancel()
+	stopRuns()
+	for _, p := range running {
+		p.Cancelling = true
 	}
 	mu.Unlock()
 	tasks.Wait()

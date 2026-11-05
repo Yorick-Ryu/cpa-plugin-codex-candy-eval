@@ -152,7 +152,7 @@ function EvaluationApp() {
         model: string;
         effort: string;
         runs: number;
-        mode: string;
+        variant: string;
         concurrency: number;
       }
     >
@@ -165,7 +165,7 @@ function EvaluationApp() {
           model: "gpt-6.1-sol",
           effort: "low",
           runs: 1,
-          mode: "quick",
+          variant: "original",
           concurrency: config.detection.requests,
         },
       ]),
@@ -186,7 +186,7 @@ function EvaluationApp() {
   const locked = useRef(false);
   const activeAuth = useRef(auth);
   activeAuth.current = auth;
-  const defaultSettings = { model: "gpt-6.1-sol", effort: "low", runs: 1, mode: "quick", concurrency: config.detection.requests };
+  const defaultSettings = { model: "gpt-6.1-sol", effort: "low", runs: 1, variant: "original", concurrency: config.detection.requests };
   const currentSettings = settings[active] || defaultSettings;
   const logout = useCallback((reason: string) => {
     request.current?.abort();
@@ -297,7 +297,7 @@ function EvaluationApp() {
       return;
     }
     void api(
-      `${BASE}${tests[detail.test].scope}/record?${new URLSearchParams({ auth_id: detail.authId, id: detail.record.id || "" })}`,
+      `${BASE}${tests[detail.test].scope}/record?${new URLSearchParams({ credential_id: detail.authId, id: detail.record.id || "" })}`,
       { signal: controller.signal },
     )
       .then((record) => {
@@ -346,7 +346,7 @@ function EvaluationApp() {
         if (!catalogCache.models?.ids.includes(snapshot.model))
           throw new Error("所选模型已不在模型列表中，请重新选择。");
         const body: any = {
-          auth_ids: ids,
+          credential_ids: ids,
           model: snapshot.model,
           model_catalog: await modelCatalog(ids),
         };
@@ -354,6 +354,7 @@ function EvaluationApp() {
           body.effort = snapshot.effort;
         if (isReplyTest) { body.runs = snapshot.runs; body.method = active; }
 
+        if (active === "pelican") body.variant = snapshot.variant;
         if (active === "detection") body.concurrency = snapshot.concurrency;
         const result = await api(BASE + tests[active].scope + "/run", {
           method: "POST",
@@ -684,9 +685,9 @@ function EvaluationApp() {
             disabled={pending || progress(a, active)?.phase === "cancelling"}
             onClick={() =>
               void execute(() =>
-                api(BASE + tests[active].scope + "/cancel", {
+                api(BASE + "/cancel", {
                   method: "POST",
-                  body: { auth_ids: [a.id] },
+                  body: { credential_ids: [a.id] },
                 }),
               ).catch(() => {})
             }
@@ -797,10 +798,10 @@ function EvaluationApp() {
   };
   const clearHistory = async () => {
     if (!clearTarget) return;
-    const scope = clearTarget === "all" ? "/all" : tests[clearTarget].scope;
+    const scope = clearTarget === "all" ? "" : tests[clearTarget].scope;
     try {
       await execute(
-        () => api(BASE + scope + "/results" + (clearTarget === "candy" || clearTarget === "ciallo" ? "?method=" + clearTarget : ""), { method: "DELETE" }),
+        () => api(BASE + scope + "/records" + (clearTarget === "candy" || clearTarget === "ciallo" ? "?method=" + clearTarget : ""), { method: "DELETE" }),
         "测试记录已清空",
       );
       setClearTarget(null);
@@ -957,9 +958,9 @@ function EvaluationApp() {
                 isReplyTest || active === "pelican" ? (
                   <Typography.Paragraph
                     className="prompt-text"
-                    copyable={{ text: (active === "ciallo" ? "ciallo" : promptText(active + "-prompt")) }}
+                    copyable={{ text: (active === "ciallo" ? "ciallo" : active === "pelican" ? config.pelican_variants?.find((v: any) => v.id === currentSettings.variant)?.prompt || promptText("pelican-prompt") : promptText(active + "-prompt")) }}
                   >
-                    <pre>{(active === "ciallo" ? "ciallo" : promptText(active + "-prompt"))}</pre>
+                    <pre>{(active === "ciallo" ? "ciallo" : active === "pelican" ? config.pelican_variants?.find((v: any) => v.id === currentSettings.variant)?.prompt || promptText("pelican-prompt") : promptText(active + "-prompt"))}</pre>
                   </Typography.Paragraph>
                 ) : (
                   <div className="principle">
@@ -999,6 +1000,13 @@ function EvaluationApp() {
                 )}
                 onChange={(v) => setSetting("effort", v)}
               />
+            </Form.Item>
+          )}
+          {active === "pelican" && (
+            <Form.Item label="测试版本">
+              <Select aria-label="测试版本" value={currentSettings.variant}
+                options={[{value: "original", label: "原版"}, {value: "all-in-one", label: "多合一版"}]}
+                onChange={(v) => setSetting("variant", v)} />
             </Form.Item>
           )}
           {isReplyTest && (

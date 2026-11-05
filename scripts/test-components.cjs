@@ -101,7 +101,7 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     await wait(() => assert(stat("测试中", 1)));
     await wait(() => assert(stat("可测试", 1)));
     const run = requests.find((r) => r.path.endsWith("/run"));
-    assert.deepEqual(run.body.auth_ids, ["workspace-alpha@example.test"]);
+    assert.deepEqual(run.body.credential_ids, ["workspace-alpha@example.test"]);
     assert.deepEqual(
       run.body.model_catalog["workspace-alpha@example.test"],
       ["gpt-5.6-sol", "gpt-6-astra", "gpt-6.1-sol"].sort(),
@@ -145,12 +145,12 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     );
     fireEvent.click(role("button", "测试全部 (1)"));
     await wait(() => assert(role("button", "停止")));
-    const detectionRun = requests.find(r => r.path.endsWith("/detection/run"));
+    const detectionRun = requests.find(r => r.path.endsWith("/fingerprint/run"));
     assert.equal(detectionRun.body.concurrency, 3);
     assert(!("mode" in detectionRun.body));
     fireEvent.click(role("button", "停止"));
     await wait(() => assert(stat("可测试", 1)));
-    assert(requests.some((r) => r.path.endsWith("/detection/cancel")));
+    assert(requests.some((r) => r.path.endsWith("/cancel")));
     // Partial detections must omit probabilities while retaining rankings and samples.
     detection.status = "partial";
     detection.attribution.probability = null;
@@ -188,6 +188,12 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
         !queryByRole(body, "dialog", { name: "画鹈鹕详情", exact: true }),
       ),
     );
+    fireEvent.mouseDown(role("combobox", "测试版本").closest(".ant-select").querySelector(".ant-select-selector") || role("combobox", "测试版本"));
+    await wait(() => assert(body.querySelector('.ant-select-item-option[title="多合一版"]')));
+    fireEvent.click(body.querySelector('.ant-select-item-option[title="多合一版"]'));
+    fireEvent.click(role("button", "测试全部 (1)"));
+    await wait(() => assert(requests.some(r => r.path.endsWith("/pelican/run") && r.body?.variant === "all-in-one")));
+    await wait(() => assert(!role("button", "测试全部 (1)").disabled));
     fireEvent.click(role("tab", "Ciallo"));
     await wait(() => assert(role("tabpanel", "Ciallo")));
     assert(!queryByRole(body, "combobox", {name:"测试方法"}));

@@ -58,17 +58,17 @@ export const tests: Record<
   candy: {
     label: "糖果题",
     field: "results",
-    scope: "",
+    scope: "/candy",
     description: "让模型解一道糖果题，答出 21 即为正确。",
   },
   ciallo: {
-    label: "Ciallo", field: "results", scope: "",
+    label: "Ciallo", field: "results", scope: "/candy",
     description: "发送 ciallo，按指定回复规则判断通过、未通过或无法判断。仅匹配回复风格，不能确认模型身份或能力。",
   },
   detection: {
     label: "指纹检测",
     field: "detections",
-    scope: "/detection",
+    scope: "/fingerprint",
     description: "通过三次随机数字挑战，识别参考库中最接近的模型与家族。",
   },
   pelican: {
@@ -154,24 +154,21 @@ export function detectionModelID(model: string = "") {
 }
 
 export function parseState(data: any): Credential[] {
-  if (
-    !Array.isArray(data.auths) ||
-    data.auths.some(
-      (a: any) =>
-        !a ||
-        typeof a.id !== "string" ||
-        !a.id.trim() ||
-        ["results", "detections", "pelicans"].some(
-          (f) =>
-            !Array.isArray(a[f]) ||
-            a[f].some(
-              (r: any) => !r || typeof r !== "object" || Array.isArray(r),
-            ),
-        ),
-    )
-  )
+  if (!Array.isArray(data?.credentials) || data.credentials.some((a: any) =>
+    !a || typeof a.id !== "string" || !a.id.trim() ||
+    ["candies", "fingerprints", "pelicans"].some(f => !Array.isArray(a[f]) ||
+      a[f].some((r: any) => !r || typeof r !== "object" || Array.isArray(r)))))
     throw new Error("服务器返回的测试记录格式无效。");
-  return data.auths;
+  return data.credentials.map((a: any) => {
+    const p = a.running ? {...a.running, phase: a.running.cancelling ? "cancelling" : "running"} : undefined;
+    return {...a,
+      results: a.candies.map((r: any) => ({...r, ok: r.status === "correct", skipped: r.status === "skipped"})),
+      detections: a.fingerprints,
+      running: p?.test === "candy" ? p : undefined,
+      detection_running: p?.test === "fingerprint" ? p : undefined,
+      pelican_running: p?.test === "pelican" ? p : undefined,
+    };
+  });
 }
 
 export function recordsFor(a: Credential, test: Test): RecordData[] {

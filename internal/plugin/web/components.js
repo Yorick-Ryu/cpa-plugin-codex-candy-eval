@@ -13,9 +13,11 @@ const ICONS = {
   "square-arrow-right-enter": '<path d="m10 16 4-4-4-4"/><path d="M3 12h11"/><path d="M3 8V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3"/>',
   "square-arrow-right-exit": '<path d="M10 12h11"/><path d="m17 16 4-4-4-4"/><path d="M21 6.344V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1.344"/>',
   brain: '<path d="M12 18V5a3 3 0 0 0-5.997-.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 18V5a3 3 0 0 1 5.997-.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4M6 17a4 4 0 0 1-1.967-.767M18 17a4 4 0 0 0 1.967-.767"/>',
+  layers: '<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/>',
   calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/>',
   astroid: '<path d="M12.983 21.186a1 1 0 0 1-1.966 0 10 10 0 0 0-8.203-8.203 1 1 0 0 1 0-1.966 10 10 0 0 0 8.203-8.203 1 1 0 0 1 1.966 0 10 10 0 0 0 8.203 8.203 1 1 0 0 1 0 1.966 10 10 0 0 0-8.203 8.203"/>',
   "rotate-cw": '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',
+  repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
   "circle-check": '<circle cx="12" cy="12" r="10"/><path d="m16 9-5.5 5.5L8 12"/>',
   "circle-x": '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
   "circle-alert": '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
@@ -51,6 +53,7 @@ const boundedInput = (id, fallback, maximum) => Math.min(Math.max(parseInt($(id)
 
 const fmtNum = (n) => (n ? Number(n).toLocaleString("en-US") : "0");
 const fmtSec = (ms) => (ms / 1000).toFixed(1) + "s";
+const fmtPercent = (value) => Number.isFinite(value) && value >= 0 && value <= 1 ? `${(value * 100).toFixed(1)}%` : "—";
 function fmtTime(iso, seconds = true) {
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "—";
@@ -67,7 +70,8 @@ const metrics = (r) =>
   metric("clock", "耗时", r.duration_ms != null ? fmtSec(r.duration_ms) : "—") +
   metric("square-arrow-right-enter", "输入 Token", r.input_tokens != null ? fmtNum(r.input_tokens) : "—") +
   metric("square-arrow-right-exit", "输出 Token", r.output_tokens != null ? fmtNum(r.output_tokens) : "—") +
-  (r.reasoning_tokens > 0 ? metric("brain", "推理 Token", fmtNum(r.reasoning_tokens)) : "");
+  (r.reasoning_tokens > 0 ? metric("brain", "推理 Token", fmtNum(r.reasoning_tokens)) : "") +
+  (r.attempts > 1 ? metric("repeat", "重试", `${r.attempts - 1} 次`) : "");
 
 // Codex plans in sort order, labelled like the official Codex client.
 // Badges follow CPAMC: platinum for top Pro plans, gold for Pro 100 and Business Premium.
@@ -126,9 +130,9 @@ function enableSwitch(a) {
 }
 
 // Row details are separate columns on wide screens and one footer line on narrow ones.
-function credentialRow({ type, credential: a, selected, open, selectable, result, meta, tested, button, history }) {
+function credentialRow({ test, credential: a, selected, open, selectable, result, meta, tested, button, history }) {
   return `<div class="row ${open ? "open" : ""}"><div class="list-row row-main" data-row="${esc(a.id)}">
-    <label class="select-cell"><input type="checkbox" data-${type}-select="${esc(a.id)}" aria-label="选择此凭证" ${selected ? "checked" : ""} ${selectable ? "" : "disabled"}></label>
+    <label class="select-cell"><input type="checkbox" data-${test}-select="${esc(a.id)}" aria-label="选择此凭证" ${selected ? "checked" : ""} ${selectable ? "" : "disabled"}></label>
     ${credentialView(a, open)}<div class="latest">${result}</div><div class="row-meta ${tested ? "" : "untested"}">${meta}${enableSwitch(a)}</div>${button}</div>
     ${open ? historyPanel(history()) : ""}</div>`;
 }
@@ -136,23 +140,21 @@ function credentialRow({ type, credential: a, selected, open, selectable, result
 function resultOutcome({ tone = "", symbol, titleHTML, detailHTML = "", progressHTML = "" }) {
   return `<div class="outcome ${tone}"><span class="outcome-icon">${icon(symbol, progressHTML ? "spin" : "")}</span><div class="outcome-copy"><div class="outcome-title">${titleHTML}</div>${detailHTML ? `<div class="outcome-detail">${detailHTML}</div>` : ""}${progressHTML}</div></div>`;
 }
-function collectionOutcome(p, total) {
-  const stopping = p.phase === "cancelling";
-  const phase = stopping ? "正在停止" : "正在采集";
+function collectionOutcome(p) {
   return resultOutcome({
     symbol: "loader-circle",
-    titleHTML: `${phase} <span class="meta mono">${p.done}/${total}</span>`,
-    detailHTML: stopping ? "已停止发送新请求，进行中的请求返回后保存结果" : "",
-    progressHTML: `<progress class="collection-progress" value="${p.done}" max="${total}" aria-label="采集进度"></progress>`,
+    titleHTML: `${p.cancelling ? "正在停止" : "正在采集"} <span class="meta mono">${p.done}/${p.total}</span>`,
+    detailHTML: p.cancelling ? "正在中断进行中的请求，已收到的回答会保存" : "",
+    progressHTML: `<progress class="collection-progress" value="${p.done}" max="${p.total}" aria-label="采集进度"></progress>`,
   });
 }
-function collectionButton(type, credential, progress, label) {
-  if (progress) return `<button class="btn ghost" type="button" data-${type}-cancel="${esc(credential.id)}" data-tip="停止发送新请求，已发出的请求会继续完成" ${pending || progress.phase === "cancelling" ? "disabled" : ""}>停止</button>`;
-  return `<button class="btn" type="button" data-${type}-run="${esc(credential.id)}" ${disabledFor(runBlocker(type + "-", credential))}>${icon("play")}${esc(label)}</button>`;
+function collectionButton(test, credential, progress, label) {
+  if (progress) return `<button class="btn ghost" type="button" data-${test}-cancel="${esc(credential.id)}" data-tip="停止测试并中断进行中的请求" ${pending || progress.cancelling ? "disabled" : ""}>停止</button>`;
+  return `<button class="btn" type="button" data-${test}-run="${esc(credential.id)}" ${disabledFor(runBlocker(test, credential))}>${icon("play")}${esc(label)}</button>`;
 }
 // The latest result of a single-prompt test: its verdict and model, then its usage.
 const latestResult = (r, verdict) => r
-  ? `<div class="latest-top">${verdict(r)}${modelMeta(r)}</div><div class="metrics">${r.skipped ? "" : metrics(r)}</div>`
+  ? `<div class="latest-top">${verdict(r)}${modelMeta(r)}</div><div class="metrics">${r.status === "skipped" ? "" : metrics(r)}</div>`
   : `<span class="none">尚未测试</span>`;
 // A record's time, model and usage, as history cards and detail dialogs head it.
 const recordMeta = (r, extraMetaHTML = "") => `<div class="result-meta">${metric("calendar", "测试时间", fmtTime(r.time))}${modelMeta(r)}${extraMetaHTML}</div><span class="metrics">${metrics(r)}</span>`;
@@ -162,22 +164,22 @@ function historyCard(r, contentHTML, extraMetaHTML = "") {
     <div class="history-card-body">${contentHTML}</div>
   </article>`;
 }
-function historyEntry(type, credentialID, r, outcomeHTML, extraMetaHTML = "") {
-  return historyCard(r, `${outcomeHTML}<button class="btn ghost" type="button" data-${type}-detail="${esc(r.id)}" data-${type}-credential="${esc(credentialID)}">${icon("chart")}查看详情</button>`, extraMetaHTML);
+function historyEntry(test, credentialID, r, outcomeHTML, extraMetaHTML = "") {
+  return historyCard(r, `${outcomeHTML}<button class="btn ghost" type="button" data-${test}-detail="${esc(r.id)}" data-${test}-credential="${esc(credentialID)}">${icon("chart")}查看详情</button>`, extraMetaHTML);
 }
 function historyPanel(entries) {
   return `<div class="history-panel"><div class="history-title">历史记录</div><div class="result-history">${entries || `<div class="none">暂无记录</div>`}</div></div>`;
 }
 // Lists carry record summaries; a detail dialog loads its full record.
-async function openResultDetail(type, scope, credentialID, recordID, showDetail) {
-  const dialog = $(type + "-detail"), body = $(type + "-detail-body");
+async function openResultDetail(test, credentialID, recordID, showDetail) {
+  const dialog = $(test + "-detail"), body = $(test + "-detail-body");
   const current = () => dialog.open && dialog.dataset.record === recordID && dialog.dataset.credential === credentialID;
   dialog.dataset.record = recordID;
   dialog.dataset.credential = credentialID;
   body.innerHTML = `<div class="empty">正在加载详情…</div>`;
   if (!dialog.open) dialog.showModal();
   try {
-    const record = await api(`${BASE}/${scope}/record?${new URLSearchParams({ auth_id: credentialID, id: recordID })}`);
+    const record = await api(`${BASE}/${test}/record?${new URLSearchParams({ credential_id: credentialID, id: recordID })}`);
     if (current()) showDetail(record);
   } catch (err) {
     if (err instanceof AuthError) return showLogin(err.message);
@@ -209,11 +211,11 @@ function setNotice(id, message, tone = "error") {
   notice.timer = setTimeout(() => hideNotice(id), 8000);
 }
 
-// The page tooltip: [data-tip] shows its text, or the aria-label when empty; candy marks show their result.
-const TIP_TARGETS = "[data-tip], [data-auth]";
+// The page tooltip: [data-tip] shows its text, or the aria-label when empty; candy marks show their record.
+const TIP_TARGETS = "[data-tip], [data-record]";
 let tipTarget = null, tipPoint = null;
 function showTip(target) {
-  const rich = !!target.dataset.auth;
+  const rich = !!target.dataset.record;
   const html = rich ? candyTip(target) : esc(target.dataset.tip || target.getAttribute("aria-label"));
   hideTip();
   if (!html) return;
@@ -263,12 +265,12 @@ function initializeTips() {
   addEventListener("resize", hideTip);
 }
 
-function credentialCard(prefix, test, columns) {
-  const clearLabel = `清空${test}记录`;
-  return `<div class="section-head credential-head"><h2>凭证</h2><label class="switch credential-enabled-filter"><input id="${prefix}enabled-only" type="checkbox" role="switch"><span>仅启用</span></label><div class="credential-filters"><span class="native-select credential-filter"><select id="${prefix}credential-type" aria-label="凭证类型"></select></span><span id="${prefix}plan-filter" class="native-select credential-filter" hidden><select id="${prefix}credential-plan" aria-label="订阅类型"></select></span></div>
-    <div class="list-actions"><button id="${prefix}mask" class="btn ghost icon-button" type="button" aria-label="脱敏" data-tip></button><button id="${prefix}clear" class="btn ghost icon-button" type="button" aria-label="${clearLabel}" data-tip disabled>${icon("trash-2")}</button></div></div>
-    <div class="list-head"><input id="${prefix}select-all" type="checkbox" aria-label="选择全部可测试凭证">${[...columns, "启用", ""].map((label) => `<div>${label}</div>`).join("")}</div>
-    <div id="${prefix}rows"><div class="empty">正在加载…</div></div>`;
+function credentialCard(test, columns) {
+  const p = test + "-";
+  return `<div class="section-head credential-head"><h2>凭证</h2><label class="switch credential-enabled-filter"><input id="${p}enabled-only" type="checkbox" role="switch"><span>仅启用</span></label><div class="credential-filters"><span class="native-select credential-filter"><select id="${p}credential-type" aria-label="凭证类型"></select></span><span id="${p}plan-filter" class="native-select credential-filter" hidden><select id="${p}credential-plan" aria-label="订阅类型"></select></span></div>
+    <div class="list-actions"><button id="${p}mask" class="btn ghost icon-button" type="button" aria-label="脱敏" data-tip></button><button id="${p}clear" class="btn ghost icon-button" type="button" aria-label="清空${TEST_LABELS[test]}记录" data-tip disabled>${icon("trash-2")}</button></div></div>
+    <div class="list-head"><input id="${p}select-all" type="checkbox" aria-label="选择全部可测试凭证">${[...columns, "启用", ""].map((label) => `<div>${label}</div>`).join("")}</div>
+    <div id="${p}rows"><div class="empty">正在加载…</div></div>`;
 }
 
 // Copy buttons copy the prompt beside them.

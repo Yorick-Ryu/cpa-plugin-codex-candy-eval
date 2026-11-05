@@ -1,6 +1,11 @@
 package plugin
 
-import "testing"
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"testing"
+)
 
 func TestClassifyCiallo(t *testing.T) {
 	for _, tc := range []struct{ answer, want string }{
@@ -30,18 +35,58 @@ func TestCandyRejectsUnknownMethod(t *testing.T) {
 
 func TestClearReplyMethodPreservesOtherHistory(t *testing.T) {
 	setupTest(t)
-	candyResults["a"] = []candyResult{{OK: true}, {Method: "candy"}, {Method: "ciallo", Verdict: "pass"}}
-	if r := clearHistoryResponse("method:ciallo"); r.StatusCode != 200 {
+	records.Candies["a"] = []candyRecord{{record: record{Status: "correct"}}, {Method: "candy"}, {Method: "ciallo", Verdict: "pass"}}
+	if r := clearRecordsResponse("method:ciallo"); r.StatusCode != 200 {
 		t.Fatal(r.StatusCode)
 	}
-	if len(candyResults["a"]) != 2 {
+	if len(records.Candies["a"]) != 2 {
 		t.Fatal("Ciallo clear removed candy history")
 	}
-	candyResults["a"] = append(candyResults["a"], candyResult{Method: "ciallo"})
-	if r := clearHistoryResponse("method:candy"); r.StatusCode != 200 {
+	records.Candies["a"] = append(records.Candies["a"], candyRecord{Method: "ciallo"})
+	if r := clearRecordsResponse("method:candy"); r.StatusCode != 200 {
 		t.Fatal(r.StatusCode)
 	}
-	if len(candyResults["a"]) != 1 || candyResults["a"][0].Method != "ciallo" {
+	if len(records.Candies["a"]) != 1 || records.Candies["a"][0].Method != "ciallo" {
 		t.Fatal("candy clear removed Ciallo history")
+	}
+}
+
+func TestCialloHistoryMigration(t *testing.T) {
+	s, _, err := readState([]byte(`{"results":{"a":[{"time":"2026-11-03T00:00:00Z","model":"m","method":"ciallo","verdict":"pass","ok":true,"answer":"Ciallo~(c・w<)★"}]}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := s.Candies["a"][0]
+	if r.Method != "ciallo" || r.Verdict != "pass" || r.Status != "correct" {
+		t.Fatalf("lost Ciallo history: %+v", r)
+	}
+}
+
+func TestCialloRunsThroughNewEndpoint(t *testing.T) {
+	setupTest(t)
+	hostCall = streamHost(func(method string, payload any) (json.RawMessage, error) {
+		if method == "host.auth.list" {
+			return json.RawMessage(`{"files":[{"id":"a","provider":"codex"}]}`), nil
+		}
+		body, _ := sentTurn(payload)
+		raw, _ := json.Marshal(body)
+		if !bytes.Contains(raw, []byte("ciallo")) {
+			t.Errorf("missing Ciallo prompt: %s", raw)
+		}
+		return mockModelResponse("Ciallo~(c・w<)★"), nil
+	})
+	response := handleManagement(managementRequest{Method: http.MethodPost, Path: managementBase + "/candy/run", Body: []byte(`{"credential_ids":["a"],"model":"m","method":"ciallo","runs":1}`)})
+	if response.StatusCode != http.StatusOK {
+		t.Fatal(string(response.Body))
+	}
+	tasks.Wait()
+	r := records.Candies["a"][0]
+	if r.Method != "ciallo" || r.Verdict != "pass" || r.Status != "correct" {
+		t.Fatalf("Ciallo result: %+v", r)
+	}
+	for _, path := range []string{"/run", "/results", "/detection/run"} {
+		if r := handleManagement(managementRequest{Method: http.MethodPost, Path: managementBase + path}); r.StatusCode != http.StatusNotFound {
+			t.Fatalf("old route still served: %s", path)
+		}
 	}
 }

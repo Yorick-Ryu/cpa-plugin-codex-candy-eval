@@ -83,7 +83,7 @@ function page() {
     const value = raw
       ? raw[1]
       : text
-          .match(/const pelicanPrompt = ([\s\S]*?)\n\n/)[1]
+          .match(/\{ID: "original"[\s\S]*?Prompt: ([\s\S]*?)\},/)[1]
           .match(/"(?:\\.|[^"\\])*"/g)
           .map((part) => JSON.parse(part))
           .join("");
@@ -163,14 +163,18 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === base + "/credentials/sync")
     return send(res, { ok: true });
   if (url.pathname === base + "/state")
-    return send(res, { auths, storage_error: "" });
+    return send(res, { credentials: auths.map(a => ({...a,
+      candies: a.results.map(r => ({...r, status: r.skipped ? "skipped" : r.error ? "failed" : r.ok ? "correct" : "wrong"})),
+      fingerprints: a.detections,
+      running: a.detection_running ? {...a.detection_running, test:"fingerprint"} : a.pelican_running ? {test:"pelican",done:0,total:1} : a.running ? {...a.running, test:"candy"} : undefined,
+    })), storage_error: "" });
   if (url.pathname.endsWith("/record"))
     return send(
       res,
-      url.pathname.includes("/detection/") ? detection : pl,
+      url.pathname.includes("/fingerprint/") ? detection : pl,
     );
   if (url.pathname.startsWith(base) && url.pathname.endsWith("/run")) {
-    const test = url.pathname.includes("/detection/")
+    const test = url.pathname.includes("/fingerprint/")
       ? "detection"
         : url.pathname.includes("/pelican/")
           ? "pelican"
@@ -186,7 +190,7 @@ const server = http.createServer(async (req, res) => {
       pelican: "pelican_running",
     };
     const targets = auths.filter(
-      (a) => body.auth_ids?.includes(a.id) && !a.disabled,
+      (a) => body.credential_ids?.includes(a.id) && !a.disabled,
     );
     for (const a of targets) {
       a[running[test]] =
@@ -231,13 +235,13 @@ const server = http.createServer(async (req, res) => {
   if (
     req.method === "DELETE" &&
     url.pathname.startsWith(base) &&
-    url.pathname.endsWith("/results")
+    url.pathname.endsWith("/records")
   ) {
     for (const a of auths) {
-      const fields = url.pathname.includes("/all/")
+      const fields = url.pathname === base + "/records"
         ? ["results", "detections", "pelicans"]
         : [
-            url.pathname.includes("/detection/")
+            url.pathname.includes("/fingerprint/")
               ? "detections"
                 : url.pathname.includes("/pelican/")
                   ? "pelicans"

@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -8,11 +9,6 @@ import (
 )
 
 const candyMaxRuns = 10
-
-var (
-	candyResults = map[string][]candyResult{}
-	candyRunning = map[string]*candyProgress{}
-)
 
 const candyPrompt = `不使用任何外部工具回答以下问题：
 
@@ -23,36 +19,21 @@ const candyPrompt = `不使用任何外部工具回答以下问题：
 五角星形   7      6      4
 `
 
-type candyResult struct {
-	Method          string    `json:"method,omitempty"`
-	Verdict         string    `json:"verdict,omitempty"`
-	Skipped         bool      `json:"skipped,omitempty"`
-	Time            time.Time `json:"time"`
-	Model           string    `json:"model"`
-	Effort          string    `json:"effort"`
-	OK              bool      `json:"ok"`
-	Answer          string    `json:"answer,omitempty"`
-	Error           string    `json:"error,omitempty"`
-	InputTokens     int64     `json:"input_tokens"`
-	OutputTokens    int64     `json:"output_tokens"`
-	ReasoningTokens int64     `json:"reasoning_tokens"`
-	DurationMS      int64     `json:"duration_ms"`
-}
-
-type candyProgress struct {
-	Method string `json:"method,omitempty"`
-	Done   int    `json:"done"`
-	Total  int    `json:"total"`
+// candyRecord is one graded answer: its status is correct, wrong, failed or skipped.
+type candyRecord struct {
+	record
+	Method   string `json:"method,omitempty"`
+	Verdict  string `json:"verdict,omitempty"`
+	Effort   string `json:"effort"`
+	Answer   string `json:"answer,omitempty"`
+	Attempts int    `json:"attempts,omitempty"`
 }
 
 type candyRunRequest struct {
-	Method       string              `json:"method,omitempty"`
-	ModelCatalog map[string][]string `json:"model_catalog,omitempty"`
-	AuthIDs      []string            `json:"auth_ids"`
-	All          bool                `json:"all"`
-	Model        string              `json:"model"`
-	Effort       string              `json:"effort"`
-	Runs         int                 `json:"runs"`
+	runRequest
+	Method string `json:"method,omitempty"`
+	Effort string `json:"effort"`
+	Runs   int    `json:"runs"`
 }
 
 func candyRunResponse(body []byte) managementResponse {
@@ -69,70 +50,62 @@ func candyRunResponse(body []byte) managementResponse {
 		return jsonError(http.StatusBadRequest, "请选择模型")
 	}
 	req.Runs = min(max(req.Runs, 1), candyMaxRuns)
-	return startRuns(req.AuthIDs, req.All, req.ModelCatalog, req.Model,
-		func(id, reason string) {
-			candyResults[id] = appendRecent(candyResults[id], candyResult{Time: time.Now().UTC(), Method: req.Method, Model: req.Model, Effort: req.Effort, Skipped: true, Error: reason})
+	return startRuns("candy", req.runRequest, req.Runs,
+		func(id string) {
+			records.Candies.add(id, candyRecord{record: skippedRecord(req.Model), Effort: req.Effort, Method: req.Method})
 		},
-		func(auth credential) {
-			candyRunning[auth.ID] = &candyProgress{Total: req.Runs, Method: req.Method}
-			go runCandy(auth, req.Model, req.Effort, req.Runs, req.Method)
+		func(ctx context.Context, auth credential, p *progress) {
+			mu.Lock()
+			p.Method = req.Method
+			mu.Unlock()
+			// Each credential answers serially. Stopping ctx drops the answer it interrupts.
+			for range req.Runs {
+				r := evaluateCandyMethod(ctx, auth, req.Model, req.Effort, req.Method)
+				if ctx.Err() != nil {
+					return
+				}
+				mu.Lock()
+				records.Candies.add(auth.ID, r)
+				p.Done++
+				_ = saveStateLocked()
+				mu.Unlock()
+				if r.Status == "skipped" {
+					return
+				}
+			}
 		})
 }
 
-// Each credential runs serially; different credentials run in parallel.
-func runCandy(auth credential, model, effort string, runs int, method string) {
-	id := auth.ID
-	defer tasks.Done()
-	defer func() {
-		mu.Lock()
-		delete(candyRunning, id)
-		mu.Unlock()
-	}()
-	for range runs {
-		mu.Lock()
-		stopping := quiescing
-		mu.Unlock()
-		if stopping {
-			return
-		}
-		r := evaluateCandyMethod(auth, model, effort, method)
-		mu.Lock()
-		candyResults[id] = appendRecent(candyResults[id], r)
-		candyRunning[id].Done++
-		_ = saveStateLocked()
-		mu.Unlock()
-		if r.Skipped {
-			return
-		}
-	}
+// evaluateCandy grades one answer. A wrong answer is a result, so only failed requests are retried.
+func evaluateCandy(ctx context.Context, auth credential, model, effort string) candyRecord {
+	return evaluateCandyMethod(ctx, auth, model, effort, "")
 }
 
-func evaluateCandy(auth credential, model, effort string) candyResult {
-	return evaluateCandyMethod(auth, model, effort, "")
-}
-
-func evaluateCandyMethod(auth credential, model, effort, method string) candyResult {
-	r := candyResult{Time: time.Now().UTC(), Model: model, Effort: effort, Method: method}
+func evaluateCandyMethod(ctx context.Context, auth credential, model, effort, method string) candyRecord {
+	started := time.Now()
+	r := candyRecord{record: newRecord(model, started), Effort: effort, Method: method}
 	prompt := candyPrompt
 	if method == "ciallo" {
 		prompt = "ciallo"
 	}
-	out, elapsed, err := askCodex(auth, model, effort, prompt)
-	r.DurationMS = elapsed.Milliseconds()
-	r.InputTokens, r.OutputTokens, r.ReasoningTokens = out.InputTokens, out.OutputTokens, out.ReasoningTokens
-	if err != nil {
-		r.Error = truncate(err.Error(), 500)
-		if isModelCooldown(err) {
-			r.Skipped, r.Error = true, modelCooldownMessage
-		}
-		return r
+	out, attempts, err := askCodex(ctx, auth, model, effort, "", prompt, answerTimeout, nil)
+	r.DurationMS, r.Attempts, r.usage = time.Since(started).Milliseconds(), attempts, out.usage
+	switch {
+	case isModelCooldown(err):
+		r.Status, r.Error = "skipped", modelCooldownMessage
+	case err != nil:
+		r.Status, r.Error = "failed", truncate(err.Error(), 500)
+	case hasStandalone21(out.Answer):
+		r.Status, r.Answer = "correct", truncate(out.Answer, 4000)
+	default:
+		r.Status, r.Answer = "wrong", truncate(out.Answer, 4000)
 	}
-	r.Answer = truncate(out.Answer, 4000)
-	if method == "ciallo" {
+	if err == nil && method == "ciallo" {
 		r.Verdict = classifyCiallo(out.Answer)
-		r.OK = r.Verdict == "pass"
-	} else {
-		r.OK = hasStandalone21(out.Answer)
+		r.Status = "wrong"
+		if r.Verdict == "pass" {
+			r.Status = "correct"
+		}
 	}
 	return r
 }

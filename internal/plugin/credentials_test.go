@@ -49,7 +49,7 @@ func TestCredentialInventoryAndSync(t *testing.T) {
 		t.Fatalf("selected = %+v, %v", selected, err)
 	}
 	selected, _ = selectedCredentials([]string{"compat", "configured", "cooling.json"}, false)
-	if len(selected) != 2 {
+	if len(selected) != 2 || selected[0].Provider != "openai-compatible-demo" {
 		t.Fatalf("selection = %+v", selected)
 	}
 	for _, body := range []string{`{}`, `{"credentials":[{"id":"a","provider":"codex"},{"id":"a","provider":"codex"}]}`} {
@@ -141,15 +141,15 @@ func TestCandyPreflightPinnedProvidersAndNone(t *testing.T) {
 		t.Fatalf("run: %s", response.Body)
 	}
 	tasks.Wait()
-	if len(candyResults["skip"]) != 1 || !candyResults["skip"][0].Skipped || candyResults["skip"][0].DurationMS != 0 {
+	if len(records.Candies["skip"]) != 1 || records.Candies["skip"][0].Status != "skipped" || records.Candies["skip"][0].DurationMS != 0 {
 		t.Fatal("skip was executed or not recorded")
 	}
-	if len(candyResults["config"]) != 2 || len(candyResults["unknown"]) != 2 || len(candyResults["off"]) != 0 {
+	if len(records.Candies["config"]) != 2 || len(records.Candies["unknown"]) != 2 || len(records.Candies["off"]) != 0 {
 		t.Fatal("incorrect run scope")
 	}
-	candyResults = map[string][]candyResult{}
+	records.Candies = history[candyRecord]{}
 	loadState()
-	if !candyResults["skip"][0].Skipped || !candyResults["config"][0].OK {
+	if records.Candies["skip"][0].Status != "skipped" || records.Candies["config"][0].Status != "correct" {
 		t.Fatal("new credential history was not restored")
 	}
 }
@@ -161,12 +161,12 @@ func TestCandyPreflightUsesHostStateInsteadOfCooldownHistory(t *testing.T) {
 		t.Run(fmt.Sprintf("host_cooling_%t", liveCooldown), func(t *testing.T) {
 			setupTest(t)
 			now := time.Now().UTC()
-			old := candyResult{Time: now, Model: "gpt-6.1-sol", Error: `host_call_failed: {"error":{"code":"model_cooldown","reset_seconds":604800}}`}
-			candyResults["recovered"] = []candyResult{old, {Time: now.Add(time.Second), Model: old.Model, Skipped: true, Error: old.Error}}
+			old := candyRecord{record: record{Time: now, Model: "gpt-6.1-sol", Status: "failed", Error: `host_call_failed: {"error":{"code":"model_cooldown","reset_seconds":604800}}`}}
+			records.Candies["recovered"] = []candyRecord{old, {record: record{Time: now.Add(time.Second), Model: old.Model, Status: "skipped", Error: old.Error}}}
 			if err := saveStateLocked(); err != nil {
 				t.Fatal(err)
 			}
-			candyResults = map[string][]candyResult{}
+			records.Candies = history[candyRecord]{}
 			loadState()
 			calls := 0
 			hostCall = streamHost(func(method string, payload any) (json.RawMessage, error) {
@@ -190,17 +190,17 @@ func TestCandyPreflightUsesHostStateInsteadOfCooldownHistory(t *testing.T) {
 				}
 				return mockModelResponse("21"), nil
 			})
-			response := candyRunResponse([]byte(`{"auth_ids":["recovered"],"model":"gpt-6.1-sol","effort":"low","runs":3,"model_catalog":{"recovered":["gpt-6.1-sol"]}}`))
+			response := candyRunResponse([]byte(`{"credential_ids":["recovered"],"model":"gpt-6.1-sol","effort":"low","runs":3,"model_catalog":{"recovered":["gpt-6.1-sol"]}}`))
 			tasks.Wait()
 			if string(response.Body) != `{"started":1}` || calls != map[bool]int{true: 1, false: 3}[liveCooldown] {
 				t.Fatalf("run=%s host calls=%d", response.Body, calls)
 			}
-			results := candyResults["recovered"]
-			if len(results) != 2+calls || results[0].Error != old.Error || !results[1].Skipped {
+			results := records.Candies["recovered"]
+			if len(results) != 2+calls || results[0].Error != old.Error || results[1].Status != "skipped" {
 				t.Fatalf("history changed: %+v", results)
 			}
 			last := results[len(results)-1]
-			if liveCooldown && (last.Error != modelCooldownMessage || !last.Skipped || last.OK) || !liveCooldown && (!last.OK || last.Skipped || last.Error != "") {
+			if liveCooldown && (last.Error != modelCooldownMessage || last.Status != "skipped" || (last.Status == "correct")) || !liveCooldown && (!(last.Status == "correct") || (last.Status == "skipped") || last.Error != "") {
 				t.Fatalf("host result ignored: %+v", last)
 			}
 		})
@@ -215,16 +215,16 @@ func TestDetectionPreflightSkipsWithoutRequests(t *testing.T) {
 		}
 		return json.RawMessage(`{"files":[{"id":"a","provider":"claude"}]}`), nil
 	}
-	response := detectionRunResponse([]byte(`{"all":true,"model":"gpt-5.6-sol","model_catalog":{"a":["claude-model"]}}`))
+	response := fingerprintRunResponse([]byte(`{"all":true,"model":"gpt-5.6-sol","model_catalog":{"a":["claude-model"]}}`))
 	if string(response.Body) != `{"started":0,"skipped":1}` {
 		t.Fatalf("response = %s", response.Body)
 	}
-	if r := detectionResults["a"][0]; r.Status != "skipped" || r.Attribution != nil || r.Samples != nil {
+	if r := records.Fingerprints["a"][0]; r.Status != "skipped" || r.Attribution != nil || r.Samples != nil {
 		t.Fatalf("result = %+v", r)
 	}
-	detectionResults = map[string][]detectionResult{}
+	records.Fingerprints = history[fingerprintRecord]{}
 	loadState()
-	if detectionResults["a"][0].Status != "skipped" {
+	if records.Fingerprints["a"][0].Status != "skipped" {
 		t.Fatal("skip history not persisted")
 	}
 }

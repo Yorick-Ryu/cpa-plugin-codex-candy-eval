@@ -1,3 +1,24 @@
+function panelValue(name: string): any {
+  try {
+    const raw = localStorage.getItem(name);
+    const prefix = /^enc::v([12])::/.exec(raw || "");
+    if (!prefix) return JSON.parse(raw || "null");
+    const scopes = {
+      1: [location.host + "|" + navigator.userAgent],
+      2: [location.host, "v2|" + location.host],
+    }[Number(prefix[1]) as 1 | 2];
+    const bytes = Uint8Array.from(atob(raw!.slice(prefix[0].length)), (c) => c.charCodeAt(0));
+    for (const scope of scopes) {
+      const secret = new TextEncoder().encode("cli-proxy-api-webui::secure-storage|" + scope);
+      const decoded = bytes.map((byte, i) => byte ^ secret[i % secret.length]);
+      try {
+        return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(decoded));
+      } catch (_) {}
+    }
+  } catch (_) {}
+  return null;
+}
+
 export const BASE = "/v0/management/plugins/omcpa-codex-candy-eval";
 export const KEY_STORE = "omcpa-codex-candy-eval.key";
 let sessionKey = "";
@@ -7,22 +28,7 @@ export const setSessionKey = (value: string) => {
 export class AuthError extends Error {}
 export function initialKey(): string {
   try {
-    let raw = localStorage.getItem("cli-proxy-auth");
-    if (raw?.startsWith("enc::v1::")) {
-      const secret = new TextEncoder().encode(
-        "cli-proxy-api-webui::secure-storage|" +
-          location.host +
-          "|" +
-          navigator.userAgent,
-      );
-      raw = new TextDecoder().decode(
-        Uint8Array.from(
-          atob(raw.slice(9)),
-          (c, i) => c.charCodeAt(0) ^ secret[i % secret.length],
-        ),
-      );
-    }
-    const key = raw && JSON.parse(raw)?.state?.managementKey;
+    const key = panelValue("cli-proxy-auth")?.state?.managementKey;
     if (typeof key === "string" && key.trim()) return key.trim();
   } catch {}
   try {

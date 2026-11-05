@@ -40,28 +40,24 @@ func TestHostCooldownResultsAcrossTests(t *testing.T) {
 		return nil, &EnvelopeError{Code: "host_call_failed", Message: `{"error":{"code":"model_cooldown","reset_seconds":3600}}`, HTTPStatus: 429}
 	}
 	auth := credential{ID: "a", Provider: "codex"}
-	if r := evaluatePelican(auth, "m", ""); !r.Skipped || r.Error != modelCooldownMessage {
+	if r := evaluatePelican(context.Background(), auth, "m", "", pelicanVariants[0]); r.Status != "skipped" || r.Error != modelCooldownMessage {
 		t.Fatalf("pelican: %+v", r)
 	}
-	response := detectionRunResponse([]byte(`{"all":true,"model":"m","concurrency":1}`))
+	response := fingerprintRunResponse([]byte(`{"all":true,"model":"m","concurrency":1}`))
 	if response.StatusCode != 200 {
 		t.Fatal(string(response.Body))
 	}
 	tasks.Wait()
-	r := detectionResults["a"][0]
+	r := records.Fingerprints["a"][0]
 	if r.Status != "skipped" || r.Error != modelCooldownMessage || r.Attribution != nil {
 		t.Fatalf("detection: %+v", r)
 	}
-	if calls != 1+detectionTarget {
+	if calls != 1+fingerprintTarget {
 		t.Fatalf("cooldown retried: %d calls", calls)
 	}
 	for _, sample := range r.Samples {
 		if sample.Attempts != 1 {
 			t.Fatal("cooldown probe retried")
 		}
-	}
-	_, attempts, err := executeProbe(context.Background(), auth, "m", map[string]any{}, nil, make(chan struct{}, 1))
-	if attempts != 1 || !isModelCooldown(err) {
-		t.Fatalf("probe: %d %v", attempts, err)
 	}
 }
