@@ -968,291 +968,304 @@ function EvaluationApp() {
           </Stack>
         }
       />
-      <section role="tabpanel" aria-label={tests[active].label} className="evaluation-tab-panel">
-      {error && (
-        <Notice
-          type="error"
-          showIcon
-          title={error}
-          closable
-          onClose={() => setError("")}
-        />
-      )}
-      {storageError && <Notice type="warning" showIcon title={storageError} />}
-      <div className="test-intro">
-        <p>{tests[active].description}</p>
-        <DisclosureList
-          ghost
-          size="small"
-          items={[
-            {
-              key: "prompt",
-              label:
-                isReplyTest || active === "pelican" ? "查看题目" : "查看原理",
-              children:
-                isReplyTest || active === "pelican" ? (
-                  <Paragraph
-                    className="prompt-text"
-                    copyable={{
-                      text:
-                        active === "ciallo"
+      <section
+        role="tabpanel"
+        aria-label={tests[active].label}
+        className="evaluation-tab-panel"
+      >
+        {error && (
+          <Notice
+            type="error"
+            showIcon
+            title={error}
+            closable
+            onClose={() => setError("")}
+          />
+        )}
+        {storageError && (
+          <Notice type="warning" showIcon title={storageError} />
+        )}
+        <div className="test-intro">
+          <p>{tests[active].description}</p>
+          <DisclosureList
+            ghost
+            size="small"
+            items={[
+              {
+                key: "prompt",
+                label:
+                  isReplyTest || active === "pelican" ? "查看题目" : "查看原理",
+                children:
+                  isReplyTest || active === "pelican" ? (
+                    <Paragraph
+                      className="prompt-text"
+                      copyable={{
+                        text:
+                          active === "ciallo"
+                            ? "ciallo"
+                            : active === "pelican"
+                              ? config.pelican_variants?.find(
+                                  (v: any) => v.id === currentSettings.variant,
+                                )?.prompt || promptText("pelican-prompt")
+                              : promptText(active + "-prompt"),
+                      }}
+                    >
+                      <pre>
+                        {active === "ciallo"
                           ? "ciallo"
                           : active === "pelican"
                             ? config.pelican_variants?.find(
                                 (v: any) => v.id === currentSettings.variant,
                               )?.prompt || promptText("pelican-prompt")
-                            : promptText(active + "-prompt"),
-                    }}
-                  >
-                    <pre>
-                      {active === "ciallo"
-                        ? "ciallo"
-                        : active === "pelican"
-                          ? config.pelican_variants?.find(
-                              (v: any) => v.id === currentSettings.variant,
-                            )?.prompt || promptText("pelican-prompt")
-                          : promptText(active + "-prompt")}
-                    </pre>
-                  </Paragraph>
-                ) : (
-                  <div className="principle">
-                    <p>
-                      不同模型生成整数时，对数值、区间、末位数字及相邻数字变化的偏好相对稳定。每次从参考库的
-                      36 道挑战中随机抽取 3 道进行比对。
-                    </p>
-                    <p>
-                      相邻数字的变化方式不像语言模型时不生成排名；三条回答有效时给出归因概率，一两条有效时只给出排名。概率仅在参考库模型之间分配，不能证明模型身份。
-                    </p>
-                    <a
-                      href="https://github.com/Ikaleio/lm-detector"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      LM Fingerpoint Detector <ExternalLink size={12} />
-                    </a>
-                  </div>
-                ),
-            },
-          ]}
-        />
-      </div>
-      <Panel className="test-controls">
-        <FormLayout
-          layout="inline"
-          className="control-form"
-          onFinish={() => void run(targets.map((a) => a.id))}
-        >
-          <FormField label="模型">
-            <ChoiceSelect
-              aria-label="模型"
-              showSearch
-              optionFilterProp="label"
-              value={currentSettings.model}
-              options={modelOptions}
-              onChange={(v) => setSetting("model", v)}
-              notFoundContent="模型列表为空，请刷新"
-            />
-          </FormField>
-          {(isReplyTest || active === "pelican") && (
-            <FormField label="推理强度">
-              <ChoiceSelect
-                aria-label="推理强度"
-                value={currentSettings.effort}
-                options={["none", "low", "medium", "high", "xhigh", "max"].map(
-                  (value) => ({ value, label: value }),
-                )}
-                onChange={(v) => setSetting("effort", v)}
-              />
-            </FormField>
-          )}
-          {active === "pelican" && (
-            <FormField label="测试版本">
-              <ChoiceSelect
-                aria-label="测试版本"
-                value={currentSettings.variant}
-                options={[
-                  { value: "original", label: "原版" },
-                  { value: "all-in-one", label: "多合一版" },
-                ]}
-                onChange={(v) => setSetting("variant", v)}
-              />
-            </FormField>
-          )}
-          {isReplyTest && (
-            <FormField label="每凭证次数">
-              <NumberInput
-                aria-label="每凭证次数"
-                min={1}
-                max={10}
-                precision={0}
-                value={currentSettings.runs}
-                onChange={(v) => setSetting("runs", v ?? 1)}
-              />
-            </FormField>
-          )}
-
-          {active === "detection" && (
-            <FormField label="每凭证并发">
-              <NumberInput
-                aria-label="每凭证并发"
-                min={1}
-                max={config.detection.requests}
-                precision={0}
-                value={currentSettings.concurrency}
-                onChange={(v) => setSetting("concurrency", v ?? 1)}
-              />
-            </FormField>
-          )}
-          <FormField className="batch-control">
-            <Button
-              variant="primary"
-              type="submit"
-              icon={<Play size={14} />}
-              loading={pending}
-              disabled={
-                !targets.length || !models.includes(currentSettings.model)
-              }
-            >
-              测试
-              {selectedAuths.length ? "所选" : "全部"} ({targets.length})
-            </Button>
-          </FormField>
-        </FormLayout>
-      </Panel>
-      <div className="test-notes">
-        {isReplyTest ? (
-          <>
-            <Stack size={14} wrap>
-              <StatusLabel tone="success">
-                {active === "ciallo" ? "通过" : "答对"}
-              </StatusLabel>
-              <StatusLabel tone="danger">
-                {active === "ciallo" ? "未通过 / 请求出错" : "答错 / 请求出错"}
-              </StatusLabel>
-              <StatusLabel tone="neutral">已跳过</StatusLabel>
-            </Stack>
-            <span>
-              {active === "ciallo" ? "通过率" : "正确率"}按{" "}
-              {currentSettings.model} ({currentSettings.effort}) 统计
-            </span>
-          </>
-        ) : (
-          <span>
-            每个凭证 {active === "detection" ? config.detection.requests : 1}{" "}
-            次请求
-            {active === "detection" ? "（失败会重试）" : ""}
-          </span>
-        )}
-      </div>
-      <section className="credential-panel">
-        <div className="credential-provider-tabs">
-          <ProviderFilterTabs
-            providers={["all", ...[...new Set(auths.map(provider))].sort()]}
-            counts={Object.fromEntries([
-              ["all", auths.length],
-              ...[...new Set(auths.map(provider))].map((value) => [
-                value,
-                auths.filter((a) => provider(a) === value).length,
-              ]),
-            ])}
-            active={type}
-            onChange={(value) =>
-              changeFilter(() => {
-                setType(value);
-                setPlan("all");
-              })
-            }
+                            : promptText(active + "-prompt")}
+                      </pre>
+                    </Paragraph>
+                  ) : (
+                    <div className="principle">
+                      <p>
+                        不同模型生成整数时，对数值、区间、末位数字及相邻数字变化的偏好相对稳定。每次从参考库的
+                        36 道挑战中随机抽取 3 道进行比对。
+                      </p>
+                      <p>
+                        相邻数字的变化方式不像语言模型时不生成排名；三条回答有效时给出归因概率，一两条有效时只给出排名。概率仅在参考库模型之间分配，不能证明模型身份。
+                      </p>
+                      <a
+                        href="https://github.com/Ikaleio/lm-detector"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        LM Fingerpoint Detector <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  ),
+              },
+            ]}
           />
         </div>
-        <div className="credential-toolbar">
-          <Stack size={12} wrap>
-            <strong>凭证</strong>
-            <Stack size={6}>
-              <Switch
-                size="small"
-                aria-label="仅启用"
-                checked={enabledOnly}
-                onChange={(v) => changeFilter(() => setEnabledOnly(v))}
+        <Panel className="test-controls">
+          <FormLayout
+            layout="inline"
+            className="control-form"
+            onFinish={() => void run(targets.map((a) => a.id))}
+          >
+            <FormField label="模型">
+              <ChoiceSelect
+                aria-label="模型"
+                showSearch
+                optionFilterProp="label"
+                value={currentSettings.model}
+                options={modelOptions}
+                onChange={(v) => setSetting("model", v)}
+                notFoundContent="模型列表为空，请刷新"
               />
-              <span className="secondary">仅启用</span>
-            </Stack>
-            <ChoiceSelect
-              aria-label="订阅类型"
-              value={plan}
-              options={
-                planOptions.some((o) => o.value === plan)
-                  ? planOptions
-                  : [...planOptions, { value: plan, label: plan }]
-              }
-              onChange={(v) => changeFilter(() => setPlan(v))}
-            />
-          </Stack>
-          <Stack size={4}>
-            <SearchInput
-              aria-label="搜索凭证"
-              placeholder="搜索凭证"
-              value={search}
-              allowClear
-              onChange={(e) => changeFilter(() => setSearch(e.target.value))}
-            />
-            <Tooltip title={masked ? "取消脱敏" : "脱敏"}>
+            </FormField>
+            {(isReplyTest || active === "pelican") && (
+              <FormField label="推理强度">
+                <ChoiceSelect
+                  aria-label="推理强度"
+                  value={currentSettings.effort}
+                  options={[
+                    "none",
+                    "low",
+                    "medium",
+                    "high",
+                    "xhigh",
+                    "max",
+                  ].map((value) => ({ value, label: value }))}
+                  onChange={(v) => setSetting("effort", v)}
+                />
+              </FormField>
+            )}
+            {active === "pelican" && (
+              <FormField label="测试版本">
+                <ChoiceSelect
+                  aria-label="测试版本"
+                  value={currentSettings.variant}
+                  options={[
+                    { value: "original", label: "原版" },
+                    { value: "all-in-one", label: "多合一版" },
+                  ]}
+                  onChange={(v) => setSetting("variant", v)}
+                />
+              </FormField>
+            )}
+            {isReplyTest && (
+              <FormField label="每凭证次数">
+                <NumberInput
+                  aria-label="每凭证次数"
+                  min={1}
+                  max={10}
+                  precision={0}
+                  value={currentSettings.runs}
+                  onChange={(v) => setSetting("runs", v ?? 1)}
+                />
+              </FormField>
+            )}
+
+            {active === "detection" && (
+              <FormField label="每凭证并发">
+                <NumberInput
+                  aria-label="每凭证并发"
+                  min={1}
+                  max={config.detection.requests}
+                  precision={0}
+                  value={currentSettings.concurrency}
+                  onChange={(v) => setSetting("concurrency", v ?? 1)}
+                />
+              </FormField>
+            )}
+            <FormField className="batch-control">
               <Button
-                aria-label={masked ? "取消脱敏" : "脱敏"}
-                aria-pressed={masked}
-                className={
-                  masked ? "privacy-toggle is-active" : "privacy-toggle"
-                }
-                icon={masked ? <EyeOff size={15} /> : <Eye size={15} />}
-                onClick={() => setMasked(!masked)}
-              >
-                脱敏
-              </Button>
-            </Tooltip>
-            <Tooltip title={`清空${tests[active].label}记录`}>
-              <Button
-                variant="ghost"
-                aria-label={`清空${tests[active].label}记录`}
-                icon={<Trash2 size={15} />}
+                variant="primary"
+                type="submit"
+                icon={<Play size={14} />}
+                loading={pending}
                 disabled={
-                  pending || !auths.some((a) => recordsFor(a, active).length)
+                  !targets.length || !models.includes(currentSettings.model)
                 }
-                onClick={() => setClearTarget(active)}
-              />
-            </Tooltip>
-          </Stack>
+              >
+                测试
+                {selectedAuths.length ? "所选" : "全部"} ({targets.length})
+              </Button>
+            </FormField>
+          </FormLayout>
+        </Panel>
+        <div className="test-notes">
+          {isReplyTest ? (
+            <>
+              <Stack size={14} wrap>
+                <StatusLabel tone="success">
+                  {active === "ciallo" ? "通过" : "答对"}
+                </StatusLabel>
+                <StatusLabel tone="danger">
+                  {active === "ciallo"
+                    ? "未通过 / 请求出错"
+                    : "答错 / 请求出错"}
+                </StatusLabel>
+                <StatusLabel tone="neutral">已跳过</StatusLabel>
+              </Stack>
+              <span>
+                {active === "ciallo" ? "通过率" : "正确率"}按{" "}
+                {currentSettings.model} ({currentSettings.effort}) 统计
+              </span>
+            </>
+          ) : (
+            <span>
+              每个凭证 {active === "detection" ? config.detection.requests : 1}{" "}
+              次请求
+              {active === "detection" ? "（失败会重试）" : ""}
+            </span>
+          )}
         </div>
-        <RecordTable<Credential>
-          size="small"
-          className="credential-table"
-          rowKey="id"
-          loading={loading && !loaded}
-          columns={columns}
-          dataSource={visible}
-          scroll={{ x: isReplyTest ? 1060 : 970 }}
-          pagination={false}
-          rowSelection={{
-            selectedRowKeys: selected[active],
-            onChange: (keys) => setSelected({ ...selected, [active]: keys }),
-            getCheckboxProps: (a) => ({
-              disabled: pending || !available(a),
-              "aria-label": `选择 ${a.name}`,
-            }),
-          }}
-          expandable={{
-            expandedRowRender: history,
-            rowExpandable: (a) => recordsFor(a, active).length > 0,
-          }}
-          locale={{
-            emptyText: (
-              <EmptyState
-                description={
-                  error ? "读取失败，请刷新重试" : "没有符合筛选条件的凭证"
+        <section className="credential-panel">
+          <div className="credential-provider-tabs">
+            <ProviderFilterTabs
+              providers={["all", ...[...new Set(auths.map(provider))].sort()]}
+              counts={Object.fromEntries([
+                ["all", auths.length],
+                ...[...new Set(auths.map(provider))].map((value) => [
+                  value,
+                  auths.filter((a) => provider(a) === value).length,
+                ]),
+              ])}
+              active={type}
+              onChange={(value) =>
+                changeFilter(() => {
+                  setType(value);
+                  setPlan("all");
+                })
+              }
+            />
+          </div>
+          <div className="credential-toolbar">
+            <Stack size={12} wrap>
+              <strong>凭证</strong>
+              <Stack size={6}>
+                <Switch
+                  size="small"
+                  aria-label="仅启用"
+                  checked={enabledOnly}
+                  onChange={(v) => changeFilter(() => setEnabledOnly(v))}
+                />
+                <span className="secondary">仅启用</span>
+              </Stack>
+              <ChoiceSelect
+                aria-label="订阅类型"
+                value={plan}
+                options={
+                  planOptions.some((o) => o.value === plan)
+                    ? planOptions
+                    : [...planOptions, { value: plan, label: plan }]
                 }
+                onChange={(v) => changeFilter(() => setPlan(v))}
               />
-            ),
-          }}
-        />
-      </section>
+            </Stack>
+            <Stack size={4}>
+              <SearchInput
+                aria-label="搜索凭证"
+                placeholder="搜索凭证"
+                value={search}
+                allowClear
+                onChange={(e) => changeFilter(() => setSearch(e.target.value))}
+              />
+              <Tooltip title={masked ? "取消脱敏" : "脱敏"}>
+                <Button
+                  aria-label={masked ? "取消脱敏" : "脱敏"}
+                  aria-pressed={masked}
+                  className={
+                    masked ? "privacy-toggle is-active" : "privacy-toggle"
+                  }
+                  icon={masked ? <EyeOff size={15} /> : <Eye size={15} />}
+                  onClick={() => setMasked(!masked)}
+                >
+                  脱敏
+                </Button>
+              </Tooltip>
+              <Tooltip title={`清空${tests[active].label}记录`}>
+                <Button
+                  variant="ghost"
+                  aria-label={`清空${tests[active].label}记录`}
+                  icon={<Trash2 size={15} />}
+                  disabled={
+                    pending || !auths.some((a) => recordsFor(a, active).length)
+                  }
+                  onClick={() => setClearTarget(active)}
+                />
+              </Tooltip>
+            </Stack>
+          </div>
+          <RecordTable<Credential>
+            size="small"
+            className="credential-table"
+            rowKey="id"
+            loading={loading && !loaded}
+            columns={columns}
+            dataSource={visible}
+            scroll={{ x: isReplyTest ? 1060 : 970 }}
+            pagination={false}
+            rowSelection={{
+              selectedRowKeys: selected[active],
+              onChange: (keys) => setSelected({ ...selected, [active]: keys }),
+              getCheckboxProps: (a) => ({
+                disabled: pending || !available(a),
+                "aria-label": `选择 ${a.name}`,
+              }),
+            }}
+            expandable={{
+              expandedRowRender: history,
+              rowExpandable: (a) => recordsFor(a, active).length > 0,
+            }}
+            locale={{
+              emptyText: (
+                <EmptyState
+                  description={
+                    error ? "读取失败，请刷新重试" : "没有符合筛选条件的凭证"
+                  }
+                />
+              ),
+            }}
+          />
+        </section>
       </section>
       <AppModal
         title={detail ? tests[detail.test].label + "详情" : ""}

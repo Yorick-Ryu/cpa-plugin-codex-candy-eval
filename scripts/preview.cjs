@@ -20,16 +20,37 @@ const result = (ok, error) => ({
   reasoning_tokens: 368,
 });
 const detection = {
-  ...result(true), id: "detection-demo", status: "completed", concurrency: 3,
+  ...result(true),
+  id: "detection-demo",
+  status: "completed",
+  concurrency: 3,
   attribution: {
-    decision: "model", prediction: "gpt-6-astra", prediction_name: "gpt-6-astra / 6.1-sol",
-    probability: 0.91, family_prediction_name: "GPT", used_outputs: 3,
+    decision: "model",
+    prediction: "gpt-6-astra",
+    prediction_name: "gpt-6-astra / 6.1-sol",
+    probability: 0.91,
+    family_prediction_name: "GPT",
+    used_outputs: 3,
     results: [
-      {model: "gpt-6-astra", display_name: "gpt-6-astra / 6.1-sol", probability: 0.91},
-      {model: "gpt-5.6-sol", display_name: "gpt-5.6-sol", probability: 0.09},
+      {
+        model: "gpt-6-astra",
+        display_name: "gpt-6-astra / 6.1-sol",
+        probability: 0.91,
+      },
+      { model: "gpt-5.6-sol", display_name: "gpt-5.6-sol", probability: 0.09 },
     ],
   },
-  samples: [{instructions: "Generate independent samples.", prompt: "生成一组 1–355 的随机整数。", text: "123 42 355", parsed_numbers: 300, expected_count: 300, attempts: 1, accepted: true}],
+  samples: [
+    {
+      instructions: "Generate independent samples.",
+      prompt: "生成一组 1–355 的随机整数。",
+      text: "123 42 355",
+      parsed_numbers: 300,
+      expected_count: 300,
+      attempts: 1,
+      accepted: true,
+    },
+  ],
 };
 const pl = {
   ...result(true),
@@ -61,7 +82,15 @@ const auths = [
   detections: i === 0 ? [detection] : [],
   pelicans: i === 0 ? [{ ...pl, html: undefined }] : [],
 }));
-const config = {detection: {requests: 3, aliases: {"gpt-6.1-sol": "gpt-6-astra", "deepseek-flash": "deepseek-v4.1-flash-1017"}}};
+const config = {
+  detection: {
+    requests: 3,
+    aliases: {
+      "gpt-6.1-sol": "gpt-6-astra",
+      "deepseek-flash": "deepseek-v4.1-flash-1017",
+    },
+  },
+};
 function page() {
   let html = read("ui.html");
   const replacements = {
@@ -95,10 +124,7 @@ function page() {
   return html
     .replace(
       "/*APP_STYLES*/",
-      () =>
-        read("vendor/temml.css") +
-        "\n" +
-        read("react/app.css"),
+      () => read("vendor/temml.css") + "\n" + read("react/app.css"),
     )
     .replace("/*REACT_CONFIG*/{}", () => JSON.stringify(config))
     .replace("<!--PLUGIN_VERSION-->", "0.4.0-omc.3")
@@ -161,22 +187,38 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === base + "/credentials/sync")
     return send(res, { ok: true });
   if (url.pathname === base + "/state")
-    return send(res, { credentials: auths.map(a => ({...a,
-      candies: a.results.map(r => ({...r, status: r.skipped ? "skipped" : r.error ? "failed" : r.ok ? "correct" : "wrong"})),
-      fingerprints: a.detections,
-      running: a.detection_running ? {...a.detection_running, test:"fingerprint"} : a.pelican_running ? {test:"pelican",done:0,total:1} : a.running ? {...a.running, test:"candy"} : undefined,
-    })), storage_error: "" });
+    return send(res, {
+      credentials: auths.map((a) => ({
+        ...a,
+        candies: a.results.map((r) => ({
+          ...r,
+          status: r.skipped
+            ? "skipped"
+            : r.error
+              ? "failed"
+              : r.ok
+                ? "correct"
+                : "wrong",
+        })),
+        fingerprints: a.detections,
+        running: a.detection_running
+          ? { ...a.detection_running, test: "fingerprint" }
+          : a.pelican_running
+            ? { test: "pelican", done: 0, total: 1 }
+            : a.running
+              ? { ...a.running, test: "candy" }
+              : undefined,
+      })),
+      storage_error: "",
+    });
   if (url.pathname.endsWith("/record"))
-    return send(
-      res,
-      url.pathname.includes("/fingerprint/") ? detection : pl,
-    );
+    return send(res, url.pathname.includes("/fingerprint/") ? detection : pl);
   if (url.pathname.startsWith(base) && url.pathname.endsWith("/run")) {
     const test = url.pathname.includes("/fingerprint/")
       ? "detection"
-        : url.pathname.includes("/pelican/")
-          ? "pelican"
-          : "candy";
+      : url.pathname.includes("/pelican/")
+        ? "pelican"
+        : "candy";
     const fields = {
       candy: "results",
       detection: "detections",
@@ -211,7 +253,13 @@ const server = http.createServer(async (req, res) => {
             pelican: { ...pl, html: undefined },
           }[test],
           ...(test === "candy" && body.method === "ciallo"
-            ? { method: "ciallo", verdict: "pass", ok: true, answer: "Ciallo~(c・w<)★" } : {}),
+            ? {
+                method: "ciallo",
+                verdict: "pass",
+                ok: true,
+                answer: "Ciallo~(c・w<)★",
+              }
+            : {}),
           model: body.model,
           time: new Date().toISOString(),
         });
@@ -236,19 +284,22 @@ const server = http.createServer(async (req, res) => {
     url.pathname.endsWith("/records")
   ) {
     for (const a of auths) {
-      const fields = url.pathname === base + "/records"
-        ? ["results", "detections", "pelicans"]
-        : [
-            url.pathname.includes("/fingerprint/")
-              ? "detections"
+      const fields =
+        url.pathname === base + "/records"
+          ? ["results", "detections", "pelicans"]
+          : [
+              url.pathname.includes("/fingerprint/")
+                ? "detections"
                 : url.pathname.includes("/pelican/")
                   ? "pelicans"
                   : "results",
-          ];
+            ];
       for (const field of fields) {
         const method = url.searchParams.get("method");
-        a[field] = field === "results" && method
-          ? a[field].filter(r => (r.method || "candy") !== method) : [];
+        a[field] =
+          field === "results" && method
+            ? a[field].filter((r) => (r.method || "candy") !== method)
+            : [];
       }
     }
     return send(res, { ok: true });

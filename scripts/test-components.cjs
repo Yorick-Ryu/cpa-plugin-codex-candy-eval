@@ -8,7 +8,7 @@ const { JSDOM, VirtualConsole } = webRequire("jsdom");
 const { getByRole, getAllByRole, queryByRole, fireEvent, waitFor, within } =
   webRequire("@testing-library/dom");
 const { server, page, auths, detection } = require("./preview.cjs");
-auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
+auths.find((a) => a.id === "workspace-gamma@example.test").priority = 100;
 (async () => {
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const origin = "http://127.0.0.1:" + server.address().port;
@@ -26,11 +26,22 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     virtualConsole,
     beforeParse(window) {
       // React scheduling uses MessageChannel in browsers; jsdom omits it.
-      window.MessageChannel = class extends require("node:worker_threads").MessageChannel {
-        constructor() { super(); channels.push(this); }
+      window.MessageChannel = class extends (
+        require("node:worker_threads").MessageChannel
+      ) {
+        constructor() {
+          super();
+          channels.push(this);
+        }
       };
       window.TextEncoder = TextEncoder;
-      window.localStorage.setItem("omcpa-codex-candy-eval.omc.v2.settings", JSON.stringify({candy:{model:"gpt-6.1-sol",effort:"low",runs:1},pelican:{model:"gpt-6.1-sol",effort:"low"}}));
+      window.localStorage.setItem(
+        "omcpa-codex-candy-eval.omc.v2.settings",
+        JSON.stringify({
+          candy: { model: "gpt-6.1-sol", effort: "low", runs: 1 },
+          pelican: { model: "gpt-6.1-sol", effort: "low" },
+        }),
+      );
       window.TextDecoder = TextDecoder;
       window.AbortController = AbortController;
       window.AbortSignal = AbortSignal;
@@ -74,24 +85,56 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
   try {
     await wait(() => assert(stat("当前凭证", 4)));
     assert.deepEqual(
-      [...body.querySelectorAll(".credential-name")].map(node => node.textContent),
-      ["workspace-gamma@example.test", "workspace-delta@example.test", "workspace-alpha@example.test", "workspace-beta@example.test"],
+      [...body.querySelectorAll(".credential-name")].map(
+        (node) => node.textContent,
+      ),
+      [
+        "workspace-gamma@example.test",
+        "workspace-delta@example.test",
+        "workspace-alpha@example.test",
+        "workspace-beta@example.test",
+      ],
       "priority sorts first; equal priorities preserve the previous plan and source ordering",
     );
     assert(role("button", "测试全部 (3)"));
     assert(role("tab", "全部 4"));
     assert(role("tab", "Codex 4"));
     fireEvent.click(role("tab", "Codex 4"));
-    await wait(() => assert.equal(role("tab", "Codex 4").getAttribute("aria-selected"), "true"));
+    await wait(() =>
+      assert.equal(
+        role("tab", "Codex 4").getAttribute("aria-selected"),
+        "true",
+      ),
+    );
     assert(role("tab", "全部 4"));
     fireEvent.click(role("tab", "全部 4"));
-    await wait(() => assert.equal(role("tab", "全部 4").getAttribute("aria-selected"), "true"));
-    assert(!queryByRole(body, "tab", { name: /^AI 提供商/ }), "auth-file fixtures must not invent an AI provider filter");
+    await wait(() =>
+      assert.equal(role("tab", "全部 4").getAttribute("aria-selected"), "true"),
+    );
+    assert(
+      !queryByRole(body, "tab", { name: /^AI 提供商/ }),
+      "auth-file fixtures must not invent an AI provider filter",
+    );
     fireEvent.click(role("button", "脱敏"));
-    await wait(() => assert.equal(role("button", "取消脱敏").getAttribute("aria-pressed"), "true"));
-    assert([...body.querySelectorAll(".credential-name")].every(node => node.textContent === "••••••••••••"));
+    await wait(() =>
+      assert.equal(
+        role("button", "取消脱敏").getAttribute("aria-pressed"),
+        "true",
+      ),
+    );
+    assert(
+      [...body.querySelectorAll(".credential-name")].every(
+        (node) => node.textContent === "••••••••••••",
+      ),
+    );
     fireEvent.click(role("button", "取消脱敏"));
-    await wait(() => assert([...body.querySelectorAll(".credential-name")].some(node => node.textContent.includes("@example.test"))));
+    await wait(() =>
+      assert(
+        [...body.querySelectorAll(".credential-name")].some((node) =>
+          node.textContent.includes("@example.test"),
+        ),
+      ),
+    );
     const search = role("searchbox", "搜索凭证");
     fireEvent.input(search, { target: { value: "alpha" } });
     await wait(() => assert(stat("当前凭证", 1)));
@@ -110,7 +153,9 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     assert.equal(run.body.method, "candy");
     fireEvent.click(role("button", "展开行"));
     await wait(() => assert(body.textContent.includes("历史记录")));
-    fireEvent.click(body.querySelector('.history [data-slot="accordion-trigger"]'));
+    fireEvent.click(
+      body.querySelector('.history [data-slot="accordion-trigger"]'),
+    );
     await wait(() => assert(body.querySelector(".answer-markdown math")));
     const openAnswer = body.querySelector(".answer-markdown");
     dom.window.document.documentElement.dataset.theme = "dark";
@@ -119,7 +164,13 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
       "#0f766e",
     );
     await wait(() =>
-      assert.equal(dom.window.getComputedStyle(dom.window.document.documentElement).getPropertyValue("--accent").trim(), "#0f766e"),
+      assert.equal(
+        dom.window
+          .getComputedStyle(dom.window.document.documentElement)
+          .getPropertyValue("--accent")
+          .trim(),
+        "#0f766e",
+      ),
     );
     assert(openAnswer.isConnected, "theme changes preserve expanded history");
     fireEvent.click(role("tab", "指纹检测"));
@@ -130,7 +181,9 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     fireEvent.click(role("button", "查看详情"));
     await wait(() => assert(role("dialog", "指纹检测详情")));
     await wait(() => assert(body.textContent.includes("候选模型排行")));
-    fireEvent.click(within(role("dialog", "指纹检测详情")).getByText(/挑战 1 ·/));
+    fireEvent.click(
+      within(role("dialog", "指纹检测详情")).getByText(/挑战 1 ·/),
+    );
     await wait(() => assert(body.textContent.includes("开发者指令")));
     fireEvent.click(
       within(role("dialog", "指纹检测详情")).getByRole("button", {
@@ -145,7 +198,9 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     );
     fireEvent.click(role("button", "测试全部 (1)"));
     await wait(() => assert(role("button", "停止")));
-    const detectionRun = requests.find(r => r.path.endsWith("/fingerprint/run"));
+    const detectionRun = requests.find((r) =>
+      r.path.endsWith("/fingerprint/run"),
+    );
     assert.equal(detectionRun.body.concurrency, 3);
     assert(!("mode" in detectionRun.body));
     fireEvent.click(role("button", "停止"));
@@ -154,18 +209,37 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     // Partial detections must omit probabilities while retaining rankings and samples.
     detection.status = "partial";
     detection.attribution.probability = null;
-    for (const candidate of detection.attribution.results) candidate.probability = null;
+    for (const candidate of detection.attribution.results)
+      candidate.probability = null;
     fireEvent.click(role("button", "查看详情"));
     await wait(() => assert(body.textContent.includes("有效回答不足三条")));
     assert(body.textContent.includes("候选模型排行"));
-    fireEvent.click(within(role("dialog", "指纹检测详情")).getByRole("button", {name:"关闭", exact:true}));
-    await wait(() => assert(!queryByRole(body,"dialog",{name:"指纹检测详情",exact:true})));
+    fireEvent.click(
+      within(role("dialog", "指纹检测详情")).getByRole("button", {
+        name: "关闭",
+        exact: true,
+      }),
+    );
+    await wait(() =>
+      assert(
+        !queryByRole(body, "dialog", { name: "指纹检测详情", exact: true }),
+      ),
+    );
     detection.attribution.decision = "not_model";
     fireEvent.click(role("button", "查看详情"));
     await wait(() => assert(body.textContent.includes("因此未生成排名")));
     assert(!body.textContent.includes("候选模型排行"));
-    fireEvent.click(within(role("dialog", "指纹检测详情")).getByRole("button", {name:"关闭", exact:true}));
-    await wait(() => assert(!queryByRole(body,"dialog",{name:"指纹检测详情",exact:true})));
+    fireEvent.click(
+      within(role("dialog", "指纹检测详情")).getByRole("button", {
+        name: "关闭",
+        exact: true,
+      }),
+    );
+    await wait(() =>
+      assert(
+        !queryByRole(body, "dialog", { name: "指纹检测详情", exact: true }),
+      ),
+    );
     fireEvent.click(role("tab", "画鹈鹕"));
     await wait(() => assert(role("button", "放大查看鹈鹕动画")));
     fireEvent.click(role("button", "放大查看鹈鹕动画"));
@@ -184,23 +258,36 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
       }),
     );
     await wait(() =>
-      assert(
-        !queryByRole(body, "dialog", { name: "画鹈鹕详情", exact: true }),
-      ),
+      assert(!queryByRole(body, "dialog", { name: "画鹈鹕详情", exact: true })),
     );
     fireEvent.click(role("combobox", "测试版本"));
     await wait(() => assert(role("option", "多合一版")));
     fireEvent.click(role("option", "多合一版"));
-    await wait(() => assert(role("combobox", "测试版本").textContent.includes("多合一版")));
+    await wait(() =>
+      assert(role("combobox", "测试版本").textContent.includes("多合一版")),
+    );
     fireEvent.click(role("button", "测试全部 (1)"));
-    await wait(() => assert(requests.some(r => r.path.endsWith("/pelican/run") && r.body?.variant === "all-in-one")));
+    await wait(() =>
+      assert(
+        requests.some(
+          (r) =>
+            r.path.endsWith("/pelican/run") && r.body?.variant === "all-in-one",
+        ),
+      ),
+    );
     await wait(() => assert(!role("button", "测试全部 (1)").disabled));
     fireEvent.click(role("tab", "Ciallo"));
     await wait(() => assert(role("tabpanel", "Ciallo")));
-    assert(!queryByRole(body, "combobox", {name:"测试方法"}));
+    assert(!queryByRole(body, "combobox", { name: "测试方法" }));
     assert(!body.textContent.includes("Ciallo 规则（非模型身份鉴定）"));
     fireEvent.click(role("button", "测试全部 (1)"));
-    await wait(() => assert(requests.some(r => r.path.endsWith("/run") && r.body?.method === "ciallo")));
+    await wait(() =>
+      assert(
+        requests.some(
+          (r) => r.path.endsWith("/run") && r.body?.method === "ciallo",
+        ),
+      ),
+    );
     await wait(() => assert(stat("测试中", 1)));
     await wait(() => assert(stat("可测试", 1)));
     await wait(() => assert(body.textContent.includes("Ciallo 通过")));
@@ -230,17 +317,39 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
       ),
     );
     assert.equal(requests.filter((r) => r.method === "DELETE").length, 0);
-    for (const [id, priority] of [['supplier-a', 1000], ['supplier-b', 2000]]) {
-      auths.push({ ...auths[0], id, name: id, source: 'ai_providers', provider: 'openai-compatibility',
-        base_url: `https://${id}.example.test`, plan_type: undefined, priority,
-        results: [], detections: [], pelicans: [] });
+    for (const [id, priority] of [
+      ["supplier-a", 1000],
+      ["supplier-b", 2000],
+    ]) {
+      auths.push({
+        ...auths[0],
+        id,
+        name: id,
+        source: "ai_providers",
+        provider: "openai-compatibility",
+        base_url: `https://${id}.example.test`,
+        plan_type: undefined,
+        priority,
+        results: [],
+        detections: [],
+        pelicans: [],
+      });
     }
     fireEvent.input(search, { target: { value: "" } });
     fireEvent.click(role("button", "刷新凭证和模型"));
     await wait(() => assert(stat("当前凭证", 6)));
     assert.deepEqual(
-      [...body.querySelectorAll(".credential-name")].map(node => node.textContent),
-      ["workspace-gamma@example.test", "workspace-delta@example.test", "workspace-alpha@example.test", "workspace-beta@example.test", "supplier-a.example.test", "supplier-b.example.test"],
+      [...body.querySelectorAll(".credential-name")].map(
+        (node) => node.textContent,
+      ),
+      [
+        "workspace-gamma@example.test",
+        "workspace-delta@example.test",
+        "workspace-alpha@example.test",
+        "workspace-beta@example.test",
+        "supplier-a.example.test",
+        "supplier-b.example.test",
+      ],
       "high-priority suppliers remain below credentials and preserve supplier order",
     );
     assert.deepEqual(errors, []);
@@ -249,7 +358,10 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     );
   } finally {
     dom.window.close();
-    for (const channel of channels) { channel.port1.close(); channel.port2.close(); }
+    for (const channel of channels) {
+      channel.port1.close();
+      channel.port2.close();
+    }
     await new Promise((resolve) => server.close(resolve));
     server.closeAllConnections?.();
   }
