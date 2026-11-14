@@ -70,4 +70,4 @@ writeFileSync(
   path.join(old, "react/app.js"),
   js.replaceAll("</script", "<\\/script"),
 );
-console.log("Built embedded React / Ant Design UI");
+console.log("Built embedded React 19 / Base UI interface");

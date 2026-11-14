@@ -1037,7 +1037,7 @@ function EvaluationApp() {
       </div>
       <Panel className="test-controls">
         <FormLayout
-          layout="vertical"
+          layout="inline"
           className="control-form"
           onFinish={() => void run(targets.map((a) => a.id))}
         >

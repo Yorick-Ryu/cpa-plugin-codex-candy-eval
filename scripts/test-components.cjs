@@ -25,7 +25,7 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     pretendToBeVisual: true,
     virtualConsole,
     beforeParse(window) {
-      // Ant Design scheduling uses MessageChannel in browsers; jsdom omits it.
+      // React scheduling uses MessageChannel in browsers; jsdom omits it.
       window.MessageChannel = class extends require("node:worker_threads").MessageChannel {
         constructor() { super(); channels.push(this); }
       };
@@ -110,7 +110,7 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     assert.equal(run.body.method, "candy");
     fireEvent.click(role("button", "展开行"));
     await wait(() => assert(body.textContent.includes("历史记录")));
-    fireEvent.click(body.querySelector(".history .ant-collapse-header"));
+    fireEvent.click(body.querySelector(".history [data-slot="accordion-trigger"]"));
     await wait(() => assert(body.querySelector(".answer-markdown math")));
     const openAnswer = body.querySelector(".answer-markdown");
     dom.window.document.documentElement.dataset.theme = "dark";
@@ -188,9 +188,9 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
         !queryByRole(body, "dialog", { name: "画鹈鹕详情", exact: true }),
       ),
     );
-    fireEvent.mouseDown(role("combobox", "测试版本").closest(".ant-select").querySelector(".ant-select-selector") || role("combobox", "测试版本"));
-    await wait(() => assert(body.querySelector('.ant-select-item-option[title="多合一版"]')));
-    fireEvent.click(body.querySelector('.ant-select-item-option[title="多合一版"]'));
+    fireEvent.click(role("combobox", "测试版本"));
+    await wait(() => assert(role("option", "多合一版")));
+    fireEvent.click(role("option", "多合一版"));
     fireEvent.click(role("button", "测试全部 (1)"));
     await wait(() => assert(requests.some(r => r.path.endsWith("/pelican/run") && r.body?.variant === "all-in-one")));
     await wait(() => assert(!role("button", "测试全部 (1)").disabled));
