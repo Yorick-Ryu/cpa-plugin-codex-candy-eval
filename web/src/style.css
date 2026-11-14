@@ -508,3 +508,5 @@ h3 {
   border-radius: var(--radius-sm);
   font-weight: 550;
 }
+
+.evaluation-tab-panel { display: flex; flex-direction: column; gap: 16px; min-width: 0; }

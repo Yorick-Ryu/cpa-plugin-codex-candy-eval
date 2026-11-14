@@ -968,6 +968,7 @@ function EvaluationApp() {
           </Stack>
         }
       />
+      <section role="tabpanel" aria-label={tests[active].label} className="evaluation-tab-panel">
       {error && (
         <Notice
           type="error"
@@ -1251,6 +1252,7 @@ function EvaluationApp() {
             ),
           }}
         />
+      </section>
       </section>
       <AppModal
         title={detail ? tests[detail.test].label + "详情" : ""}

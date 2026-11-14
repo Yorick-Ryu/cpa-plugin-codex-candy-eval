@@ -119,7 +119,7 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
       "#0f766e",
     );
     await wait(() =>
-      assert(dom.window.document.head.textContent.includes("#0f766e")),
+      assert.equal(dom.window.getComputedStyle(dom.window.document.documentElement).getPropertyValue("--accent").trim(), "#0f766e"),
     );
     assert(openAnswer.isConnected, "theme changes preserve expanded history");
     fireEvent.click(role("tab", "指纹检测"));
@@ -191,6 +191,7 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     fireEvent.click(role("combobox", "测试版本"));
     await wait(() => assert(role("option", "多合一版")));
     fireEvent.click(role("option", "多合一版"));
+    await wait(() => assert(role("combobox", "测试版本").textContent.includes("多合一版")));
     fireEvent.click(role("button", "测试全部 (1)"));
     await wait(() => assert(requests.some(r => r.path.endsWith("/pelican/run") && r.body?.variant === "all-in-one")));
     await wait(() => assert(!role("button", "测试全部 (1)").disabled));
