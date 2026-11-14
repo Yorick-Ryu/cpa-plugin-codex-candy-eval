@@ -110,7 +110,7 @@ auths.find(a => a.id === "workspace-gamma@example.test").priority = 100;
     assert.equal(run.body.method, "candy");
     fireEvent.click(role("button", "展开行"));
     await wait(() => assert(body.textContent.includes("历史记录")));
-    fireEvent.click(body.querySelector(".history [data-slot="accordion-trigger"]"));
+    fireEvent.click(body.querySelector('.history [data-slot="accordion-trigger"]'));
     await wait(() => assert(body.querySelector(".answer-markdown math")));
     const openAnswer = body.querySelector(".answer-markdown");
     dom.window.document.documentElement.dataset.theme = "dark";

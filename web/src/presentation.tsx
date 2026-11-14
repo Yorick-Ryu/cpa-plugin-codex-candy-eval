@@ -666,8 +666,8 @@ export function RecordTable<T extends object>({
                               size="icon-sm"
                               aria-label={
                                 expanded.includes(key)
-                                  ? "收起 / Collapse"
-                                  : "展开 / Expand"
+                                  ? "折叠行"
+                                  : "展开行"
                               }
                               aria-expanded={expanded.includes(key)}
                               icon={
