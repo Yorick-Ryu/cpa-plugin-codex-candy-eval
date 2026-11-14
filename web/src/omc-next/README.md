@@ -19,3 +19,8 @@ The appearance bridge mirrors public design variables and CSS font-face rules
 from accessible ancestors. Font URLs are resolved against their source sheet;
 there are no baked console asset hashes. Runtime library fonts are mirrored as
 FontFaces. Standalone pages bundle regular, semibold and bold Sarasa core faces.
+
+Plugin adaptation: the console's fixed-height shell and permanent body scroll
+lock are removed. Documents scroll naturally; Base UI retains its own temporary
+modal locks. `node scripts/test-scroll.cjs` uses native Chromium wheel and touch
+input to cover standalone/nested-frame scrolling and recovery after Escape.

@@ -499,11 +499,11 @@
     box-sizing: border-box;
     border-color: var(--border);
   }
-  /* Fixed-viewport shell: body itself never scrolls; the sidebar and the main
-     content column scroll independently (wheel applies to the hovered region). */
-  html, body, #root { height: 100%; }
+  /* Plugin documents own their scrolling, including inside the console's frames.
+     Base UI manages temporary modal scroll locks with inline styles. */
+  html { min-height: 100%; }
+  body, #root { min-height: 100vh; }
   body {
-    overflow: hidden;
     margin: 0;
     min-width: 320px;
     background: var(--bg);
