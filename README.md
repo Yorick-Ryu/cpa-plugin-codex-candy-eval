@@ -2,7 +2,7 @@
 
 基于 [haowang02/cpa-plugin-codex-candy-eval](https://github.com/haowang02/cpa-plugin-codex-candy-eval) 的 OMC 界面分支，保留上游 MIT 许可及测试能力。
 
-- 使用 OMC 同款 React 18 + Ant Design 6 组件：按钮、选择器、输入框、标签页、表格、开关、进度条、弹窗和提示。
+- 使用 OMCPA v0.4.1 同款 React 19 + Base UI + Tailwind 组件：按钮、选择器、输入框、标签页、表格、开关、进度条、弹窗和提示。
 - 直接复用 OMC 的 `createThemeConfig`、`StatTiles` 和 `StatusLabel` 源码，保留其 MIT 许可。
 - 自动跟随 OMC 的深浅色、自定义配色和字体；独立页面跟随系统主题。
 - 凭证默认按优先级从高到低排列，同优先级保留原有的套餐与来源顺序；AI 供应商始终放在底部，并保留供应商原顺序。
@@ -134,9 +134,10 @@ caching. Updates change their URLs automatically. Management and account data
 are not cached. Reverse proxies must preserve these static resource cache
 headers rather than append `no-store` to every response.
 
-Byte-identical Sarasa faces reuse the existing OMC font asset URLs, with the
-plugin resources retained for standalone hosting. Scripts retain their original
-execution boundaries so the OMC resource adapter can process them individually.
+The page mirrors the embedding console's public font declarations and font roles,
+resolving font URLs from their source stylesheet. Standalone pages use the bundled
+regular, semibold and bold Sarasa core faces. No console build hash is hardcoded.
+Scripts retain their original execution boundaries for the OMC resource adapter.
 
 ### Ciallo 回复规则
 
