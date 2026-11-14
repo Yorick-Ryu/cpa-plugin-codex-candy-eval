@@ -76,6 +76,9 @@ const auths = [
   source: "auth_files",
   provider: "codex",
   plan_type,
+  siwc_bound: i < 2,
+  use_siwc: i === 0,
+  siwc: i === 0 ? [{time: "2026-10-17T12:30:00Z", model: models[0], status: "restricted", code: "subscription_sharing_user_not_eligible", error: "订阅共享受限", http_status:403}] : [],
   priority: 10,
   disabled: i === 3,
   results,
@@ -127,7 +130,7 @@ function page() {
       () => read("vendor/temml.css") + "\n" + read("react/app.css"),
     )
     .replace("/*REACT_CONFIG*/{}", () => JSON.stringify(config))
-    .replace("<!--PLUGIN_VERSION-->", "0.4.0-omc.3")
+    .replace("<!--PLUGIN_VERSION-->", fs.readFileSync(path.join(__dirname, "../internal/plugin/plugin.go"), "utf8").match(/pluginVersion\s*=\s*"([^"]+)"/)[1])
     .replace("<!--CANDY_PROMPT-->", () => prompt("candy.go"))
     .replace("<!--PELICAN_PROMPT-->", () => prompt("pelican.go"))
     .replace(
@@ -178,9 +181,12 @@ const server = http.createServer(async (req, res) => {
     return send(res, { data: models.map((id) => ({ id })) });
   if (url.pathname === "/v0/management/auth-files/models")
     return send(res, { models: models.map((id) => ({ id })) });
-  if (url.pathname === "/v0/management/auth-files/status") {
+  if (["/v0/management/auth-files/status", "/v0/management/auth-files/fields"].includes(url.pathname)) {
     const a = auths.find((a) => a.id === body.name);
-    if (a) a.disabled = body.disabled;
+    if (a) {
+      if (typeof body.disabled === "boolean") a.disabled = body.disabled;
+      if (typeof body.use_siwc === "boolean") a.use_siwc = body.use_siwc;
+    }
     return send(res, { status: "ok" });
   }
   const base = "/v0/management/plugins/omcpa-codex-candy-eval";
@@ -201,7 +207,7 @@ const server = http.createServer(async (req, res) => {
                 : "wrong",
         })),
         fingerprints: a.detections,
-        running: a.detection_running
+        running: a.siwc_running ? {...a.siwc_running, test: "siwc"} : a.detection_running
           ? { ...a.detection_running, test: "fingerprint" }
           : a.pelican_running
             ? { test: "pelican", done: 0, total: 1 }
@@ -218,16 +224,18 @@ const server = http.createServer(async (req, res) => {
       ? "detection"
       : url.pathname.includes("/pelican/")
         ? "pelican"
-        : "candy";
+        : url.pathname.includes("/siwc/") ? "siwc" : "candy";
     const fields = {
       candy: "results",
       detection: "detections",
       pelican: "pelicans",
+      siwc: "siwc",
     };
     const running = {
       candy: "running",
       detection: "detection_running",
       pelican: "pelican_running",
+      siwc: "siwc_running",
     };
     const targets = auths.filter(
       (a) => body.credential_ids?.includes(a.id) && !a.disabled,
@@ -248,6 +256,7 @@ const server = http.createServer(async (req, res) => {
         delete a[running[test]];
         a[fields[test]].push({
           ...{
+            siwc: {time: new Date().toISOString(), model: body.model, status: "available", duration_ms:25},
             candy: result(true),
             detection,
             pelican: { ...pl, html: undefined },

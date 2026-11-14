@@ -18,14 +18,14 @@ const legacy = {
       loader: "js",
       resolveDir: dir,
       contents: `
-    import {api, AuthError} from '${path.join(dir, "src/api.ts")}';
+    import {api, AuthError, HOST_SESSION} from '${path.join(dir, "src/api.ts")}';
     const BASE='/v0/management/plugins/omcpa-codex-candy-eval';
     const HIDDEN_MODEL = id => id.toLowerCase().includes('image');
     let key='', credentials=[];
     const stored = name => {try{return JSON.parse(localStorage.getItem(name))}catch{return null}};
     const store = (name,value) => {try{localStorage.setItem(name,JSON.stringify(value))}catch{}};
-    ${["credentials.js", "components.js", "catalog.js"].map((x) => readFileSync(path.join(old, x), "utf8")).join("\n")}
-    const configure=(next,auths)=>{key=next;if(auths){credentials=auths;pruneCredentialCatalog()}};
+    ${["providers.js", "components.js", "catalog.js"].map((x) => readFileSync(path.join(old, x), "utf8")).join("\n")}
+    const configure=(next,auths)=>{key=next===HOST_SESSION?null:next;if(auths){credentials=auths;pruneCredentialCatalog()}};
     export {configure,openCatalogCache,refreshCatalog,resetCatalogCache,pruneCredentialCatalog,modelCatalog,catalogCache,credentialPlan,planRank,unavailableReason};
   `,
     }));

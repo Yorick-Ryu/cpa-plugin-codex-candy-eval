@@ -39,6 +39,7 @@ jobs:
       - run: git diff --exit-code -- internal/plugin/web/react
       - run: node scripts/test-react.mjs
       - run: node scripts/test-components.cjs
+      - run: node scripts/test-components.cjs --hosted
       - name: Check tag matches plugin version
         run: grep -q "pluginVersion *= \"${RELEASE_TAG#v}\"" internal/plugin/plugin.go
       - run: go vet ./...

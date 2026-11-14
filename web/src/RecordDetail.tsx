@@ -67,6 +67,7 @@ export function RecordDetail({
     <div className="record-detail">
       <RecordMeta record={r} />
       <StatusLabel tone={state.tone}>{state.label}</StatusLabel>
+      {test === "siwc" && (r.code || r.http_status) && <p className="mono">{r.code}{r.http_status ? ` · HTTP ${r.http_status}` : ""}</p>}
       {r.error && <Notice type="error" showIcon title={r.error} />}
       {(test === "candy" || test === "ciallo") && <Answer record={r} />}
       {test === "pelican" && r.html && (

@@ -7,6 +7,7 @@ const webRequire = createRequire(
 const { JSDOM, VirtualConsole } = webRequire("jsdom");
 const { getByRole, getAllByRole, queryByRole, fireEvent, waitFor, within } =
   webRequire("@testing-library/dom");
+const hosted = process.argv.includes("--hosted");
 const { server, page, auths, detection } = require("./preview.cjs");
 auths.find((a) => a.id === "workspace-gamma@example.test").priority = 100;
 (async () => {
@@ -20,7 +21,7 @@ auths.find((a) => a.id === "workspace-gamma@example.test").priority = 100;
   const requests = [];
   const channels = [];
   const dom = new JSDOM(page(), {
-    url: origin + "/ui",
+    url: origin + (hosted ? "/omc/api/v1/plugin-host/v0/resource/plugins/omcpa-codex-candy-eval/ui" : "/ui"),
     runScripts: "dangerously",
     pretendToBeVisual: true,
     virtualConsole,
@@ -67,6 +68,7 @@ auths.find((a) => a.id === "workspace-gamma@example.test").priority = 100;
         requests.push({
           path: String(path),
           method: options.method || "GET",
+          authorization: options.headers?.Authorization,
           body: options.body && JSON.parse(options.body),
         });
         return fetch(new URL(path, origin), options);
@@ -352,6 +354,31 @@ auths.find((a) => a.id === "workspace-gamma@example.test").priority = 100;
       ],
       "high-priority suppliers remain below credentials and preserve supplier order",
     );
+    // New upstream SIWC capability uses our shipped Base UI and excludes suppliers.
+    fireEvent.click(role("tab", "SIWC 检测"));
+    await wait(() => assert(role("tabpanel", "SIWC 检测")));
+    await wait(() => assert(stat("当前凭证", 4)));
+    assert(role("button", "测试全部 (1)"));
+    assert(body.textContent.includes("订阅共享受限"));
+    assert(!body.textContent.includes("supplier-a.example.test"));
+    assert(role("switch", "使用 SIWC workspace-gamma@example.test").disabled);
+    const betaSwitch = role("switch", "使用 SIWC workspace-beta@example.test");
+    assert.equal(betaSwitch.getAttribute("aria-checked"), "false");
+    fireEvent.click(betaSwitch);
+    await wait(() => assert(requests.some(r => r.path.endsWith("/auth-files/fields") && r.body?.name === "workspace-beta@example.test" && r.body?.use_siwc === true)));
+    await wait(() => assert.equal(role("switch", "使用 SIWC workspace-beta@example.test").getAttribute("aria-checked"), "true"));
+    await wait(() => assert(role("button", "测试全部 (2)")));
+    fireEvent.click(role("checkbox", "选择 workspace-beta@example.test"));
+    await wait(() => assert(role("button", "测试所选 (1)")));
+    fireEvent.click(role("button", "测试所选 (1)"));
+    await wait(() => assert(requests.some(r => r.path.endsWith("/siwc/run") && r.body?.credential_ids?.[0] === "workspace-beta@example.test")));
+    await wait(() => assert(stat("测试中", 1)));
+    await wait(() => assert(body.textContent.includes("SIWC 可用")));
+    assert(!requests.some(r => r.path.includes("/siwc/record?")), "SIWC records are already complete in state");
+    if (hosted) {
+      assert(requests.filter(r => !r.path.startsWith("/v1/models")).every(r => r.authorization === undefined), "hosted management requests use the OMC session");
+      assert.equal(dom.window.localStorage.getItem("omcpa-codex-candy-eval.catalog.v1"), null, "shared session catalogs stay in memory");
+    }
     assert.deepEqual(errors, []);
     console.log(
       "Shipped React UI passed: search, selection, run and polling, history, detection ranking, partial/not-model outcomes and cancellation, sandboxed pelican, clear confirmation.",

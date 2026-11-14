@@ -19,6 +19,10 @@ function panelValue(name: string): any {
   return null;
 }
 
+export const HOST_SESSION = "__omcpa_host_session__";
+export const hostSession = () => {
+  try { return new URL(location.href).pathname.includes("/api/v1/plugin-host/"); } catch { return false; }
+};
 export const BASE = "/v0/management/plugins/omcpa-codex-candy-eval";
 export const KEY_STORE = "omcpa-codex-candy-eval.key";
 let sessionKey = "";
@@ -27,6 +31,7 @@ export const setSessionKey = (value: string) => {
 };
 export class AuthError extends Error {}
 export function initialKey(): string {
+  if (hostSession()) return HOST_SESSION;
   try {
     const key = panelValue("cli-proxy-auth")?.state?.managementKey;
     if (typeof key === "string" && key.trim()) return key.trim();
@@ -53,9 +58,8 @@ export async function api(
 ): Promise<any> {
   const requestKey = apiKey ?? sessionKey;
   const timeout = AbortSignal.timeout(30000);
-  const headers: Record<string, string> = {
-    Authorization: "Bearer " + requestKey,
-  };
+  const headers: Record<string, string> = {};
+  if (requestKey !== HOST_SESSION) headers.Authorization = "Bearer " + requestKey;
   if (body !== undefined) headers["Content-Type"] = "application/json";
   let resp: Response;
   try {
@@ -80,7 +84,7 @@ export async function api(
     data = JSON.parse(text);
   } catch {}
   if (resp.status === 401 && apiKey === undefined && requestKey === sessionKey)
-    throw new AuthError("管理密钥无效，请重新输入。");
+    throw new AuthError(requestKey === HOST_SESSION ? "面板登录已过期，请返回 OMCPA 重新登录。" : "管理密钥无效，请重新输入。");
   if (!resp.ok)
     throw Object.assign(
       new Error(

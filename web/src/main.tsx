@@ -51,6 +51,8 @@ import {
   BASE,
   KEY_STORE,
   initialKey,
+  hostSession,
+  HOST_SESSION,
   setSessionKey,
   AuthError,
 } from "./api";
@@ -66,7 +68,7 @@ import {
   unavailableReason,
 } from "legacy";
 import {
-  available,
+  runBlocker,
   compareCredentialPriority,
   busy,
   provider,
@@ -118,12 +120,14 @@ const emptySelection = () => ({
   ciallo: [] as React.Key[],
   detection: [] as React.Key[],
   pelican: [] as React.Key[],
+  siwc: [] as React.Key[],
 });
 const icons = {
   candy: <Candy size={15} />,
   ciallo: <Hand size={15} aria-hidden="true" />,
   detection: <Fingerprint size={15} />,
   pelican: <Play size={15} />,
+  siwc: <Fingerprint size={15} />,
 };
 const promptText = (id: string) =>
   (document.getElementById(id) as HTMLTemplateElement)?.content.textContent ||
@@ -144,7 +148,10 @@ function EvaluationApp() {
   const isReplyTest = active === "candy" || active === "ciallo";
   const [masked, setMasked] = usePreference("masked", false);
   const [type, setType] = usePreference("provider", "all");
-  const [plan, setPlan] = usePreference("plan", "all");
+  const [generalPlan, setGeneralPlan] = usePreference("plan", "all");
+  const [siwcPlan, setSiwcPlan] = usePreference("siwcPlan", "all");
+  const plan = active === "siwc" ? siwcPlan : generalPlan;
+  const setPlan = active === "siwc" ? setSiwcPlan : setGeneralPlan;
   const [enabledOnly, setEnabledOnly] = usePreference("enabledOnly", false);
   const [search, setSearch] = useState("");
   const [tile, setTile] = useState("all");
@@ -268,7 +275,7 @@ function EvaluationApp() {
     let cancelled = false;
     setSessionKey(auth);
     configure(auth, []);
-    void openCatalogCache(auth).then(() => {
+    void openCatalogCache(auth === HOST_SESSION ? null : auth).then(() => {
       if (!cancelled) void load(true);
     });
     return () => {
@@ -303,7 +310,7 @@ function EvaluationApp() {
     const controller = new AbortController();
     setDetailData(null);
     setDetailError("");
-    if (detail.test === "candy" || detail.test === "ciallo") {
+    if (detail.test === "candy" || detail.test === "ciallo" || detail.test === "siwc") {
       setDetailData(detail.record);
       return;
     }
@@ -385,13 +392,13 @@ function EvaluationApp() {
       });
     } catch {}
   };
-  const changeEnabled = async (a: Credential, enabled: boolean) => {
+  const changeCredential = async (a: Credential, field: "disabled" | "use_siwc", value: boolean) => {
     setSwitching((s) => new Set([...s, a.id]));
     try {
       await execute(async () => {
-        await api("/v0/management/auth-files/status", {
+        await api("/v0/management/auth-files/" + (field === "disabled" ? "status" : "fields"), {
           method: "PATCH",
-          body: { name: a.id, disabled: !enabled },
+          body: { name: a.id, [field]: value },
         });
         if (a.source !== "auth_files") await refreshCatalog({ force: true });
       });
@@ -410,7 +417,7 @@ function EvaluationApp() {
     setTile("all");
   };
   const typeFiltered = auths.filter(
-    (a) => type === "all" || provider(a) === type,
+    (a) => active === "siwc" ? a.source === "auth_files" && a.provider === "codex" : type === "all" || provider(a) === type,
   );
   const plans = [
     ...new Map(
@@ -443,19 +450,20 @@ function EvaluationApp() {
     .sort(
       (a, b) => compareCredentialPriority(a, b) || planRank(a) - planRank(b),
     );
+  const canRun = (a: Credential) => !runBlocker(a, active);
   const hasHistory = (a: Credential) => recordsFor(a, active).length > 0;
   const visible = filtered.filter(
     (a) =>
       tile === "all" ||
       (tile === "ready"
-        ? available(a)
+        ? canRun(a)
         : tile === "running"
           ? busy(a)
           : hasHistory(a)),
   );
   const selectedAuths = visible.filter((a) => selected[active].includes(a.id));
   const targets = (selectedAuths.length ? selectedAuths : visible).filter(
-    available,
+    canRun,
   );
   const showDetail = (a: Credential, r: RecordData) => {
     setDetailData(null);
@@ -468,7 +476,9 @@ function EvaluationApp() {
     const s = verdict(r, active);
     return (
       <div className="result-cell">
-        {p ? (
+        {active === "siwc" && !a.siwc_bound ? (
+          <StatusLabel tone="neutral">需先绑定 SIWC</StatusLabel>
+        ) : p ? (
           <>
             <StatusLabel tone="accent">
               {p.phase === "cancelling"
@@ -677,6 +687,17 @@ function EvaluationApp() {
           },
         ]
       : []),
+    ...(active === "siwc" ? [{
+      title: "使用 SIWC", key: "use_siwc", width: 110,
+      render: (_: unknown, a: Credential) => (
+        <Tooltip title={!a.siwc_bound ? "请先在 CPA 的 OAuth 登录中绑定 SIWC" : busy(a) ? "测试进行中" : ""}>
+          <Switch size="small" aria-label={`使用 SIWC ${a.name}`}
+            checked={!!a.use_siwc} disabled={!a.siwc_bound || busy(a) || pending}
+            loading={switching.has(a.id)}
+            onChange={checked => void changeCredential(a, "use_siwc", checked)} />
+        </Tooltip>
+      ),
+    }] : []),
     {
       title: "启用",
       key: "enabled",
@@ -696,7 +717,7 @@ function EvaluationApp() {
               checked={!a.disabled}
               disabled={!can || busy(a) || pending}
               loading={switching.has(a.id)}
-              onChange={(checked) => void changeEnabled(a, checked)}
+              onChange={(checked) => void changeCredential(a, "disabled", !checked)}
             />
           </Tooltip>
         );
@@ -728,13 +749,9 @@ function EvaluationApp() {
         ) : (
           <Tooltip
             title={
-              a.disabled
-                ? "凭证已停用"
-                : busy(a)
-                  ? "凭证正在测试"
-                  : !currentSettings.model
+              runBlocker(a, active) || (!currentSettings.model
                     ? "请选择模型"
-                    : ""
+                    : "")
             }
           >
             <Button
@@ -742,7 +759,7 @@ function EvaluationApp() {
               icon={<Play size={12} />}
               disabled={
                 pending ||
-                !available(a) ||
+                !canRun(a) ||
                 !models.includes(currentSettings.model)
               }
               onClick={() => void run([a.id])}
@@ -848,7 +865,12 @@ function EvaluationApp() {
     } catch {}
   };
   if (!auth)
-    return (
+    return hostSession() ? (
+      <main className="login-page"><Panel title="面板登录已过期" className="login-card">
+        <p>{error || "请返回 OMCPA 重新登录后刷新插件。"}</p>
+        <Button onClick={() => location.reload()}>刷新</Button>
+      </Panel></main>
+    ) : (
       <main className="login-page">
         <Panel title="连接 CPA" className="login-card">
           <p className="secondary">使用 CPA 管理密钥访问凭证和测试记录。</p>
@@ -904,7 +926,7 @@ function EvaluationApp() {
           {
             key: "ready",
             label: "可测试",
-            count: loaded ? filtered.filter(available).length : undefined,
+            count: loaded ? filtered.filter(canRun).length : undefined,
             tone: "neutral",
           },
           {
@@ -1020,6 +1042,8 @@ function EvaluationApp() {
                             : promptText(active + "-prompt")}
                       </pre>
                     </Paragraph>
+                  ) : active === "siwc" ? (
+                    <p>检测会通过所选凭证的 SIWC 通道发送一次简短请求。请先绑定 SIWC 并开启「使用 SIWC」。仅根据明确的错误代码区分订阅共享受限，普通 403 不会被判定为该限制。</p>
                   ) : (
                     <div className="principle">
                       <p>
@@ -1158,7 +1182,7 @@ function EvaluationApp() {
           )}
         </div>
         <section className="credential-panel">
-          <div className="credential-provider-tabs">
+          {active !== "siwc" && <div className="credential-provider-tabs">
             <ProviderFilterTabs
               providers={["all", ...[...new Set(auths.map(provider))].sort()]}
               counts={Object.fromEntries([
@@ -1176,7 +1200,7 @@ function EvaluationApp() {
                 })
               }
             />
-          </div>
+          </div>}
           <div className="credential-toolbar">
             <Stack size={12} wrap>
               <strong>凭证</strong>
@@ -1247,7 +1271,7 @@ function EvaluationApp() {
               selectedRowKeys: selected[active],
               onChange: (keys) => setSelected({ ...selected, [active]: keys }),
               getCheckboxProps: (a) => ({
-                disabled: pending || !available(a),
+                disabled: pending || !canRun(a),
                 "aria-label": `选择 ${a.name}`,
               }),
             }}

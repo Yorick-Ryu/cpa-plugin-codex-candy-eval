@@ -167,3 +167,30 @@ for (const answer of ["Ciallo! 👋 What can I help you with?", "Ciallo～ 👋"
   assert.equal(record.answer,answer);
 }
 assert.equal(verdict({method:"ciallo",status:"inconclusive",verdict:"inconclusive"},"ciallo").tone,"neutral");
+
+// SIWC state is optional for older hosts; malformed new history is rejected.
+assert.equal(parseState({credentials:[{...auth,candies:[],fingerprints:[]} ]})[0].siwc.length, 0);
+assert.throws(() => parseState({credentials:[{...auth,candies:[],fingerprints:[],siwc:[null]}]}));
+const siwc = {...auth, siwc_bound:true, use_siwc:true, siwc:[]};
+assert.equal(module.exports.runBlocker(siwc, "siwc"), "");
+for (const change of [{siwc_bound:false}, {use_siwc:false}, {source:"ai_providers"}, {provider:"claude"}, {siwc_running:{done:0}}])
+  assert(module.exports.runBlocker({...siwc,...change}, "siwc"));
+for (const [status,label,tone] of [["available","SIWC 可用","success"],["restricted","订阅共享受限","danger"],["limited","额度或频率受限","warn"],["auth_error","认证异常","danger"],["failed","检测未完成","danger"]])
+  assert.deepEqual(verdict({status,error:status === "available" ? undefined : "fixture"},"siwc"),{label,tone});
+const parsedSIWC = parseState({credentials:[{...siwc,candies:[],fingerprints:[],running:{test:"siwc",done:0,total:1}}]})[0];
+assert.equal(module.exports.busy(parsedSIWC),true);
+assert.equal(module.exports.progress(parsedSIWC,"siwc").total,1);
+// Hosted OMC ignores stale CPA keys and does not expose a fabricated Authorization header.
+globalThis.location.href = "https://fixture.test/omc/api/v1/plugin-host/v0/resource/plugins/omcpa-codex-candy-eval/ui";
+assert.equal(initialKey(), apiModule.exports.HOST_SESSION);
+let hostHeaders;
+setSessionKey(initialKey());
+globalThis.fetch = async (_url, options) => {hostHeaders = options.headers; return {ok:true,status:200,text:async()=>"{}"};};
+await api("/fixture");
+assert.equal(hostHeaders.Authorization,undefined);
+await api("/fixture", {apiKey:"synthetic-client"});
+assert.equal(hostHeaders.Authorization,"Bearer synthetic-client");
+globalThis.fetch = async () => ({ok:false,status:401,text:async()=>"{}"});
+await assert.rejects(api("/fixture"), /面板登录已过期/);
+globalThis.fetch = originalFetch;
+console.log("SIWC contracts and OMC session authentication passed.");

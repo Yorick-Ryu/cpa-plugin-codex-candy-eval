@@ -14,10 +14,10 @@
 html { background: var(--bg-image) fixed var(--bg); }
 body {
   margin: 0; padding: 0 var(--page-inline); color: var(--ink);
-  font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif;
+  font: 14px/1.55 var(--font-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "HarmonyOS Sans SC", "Microsoft YaHei", sans-serif);
   -webkit-font-smoothing: antialiased;
 }
-.mono, .markdown code { font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+.mono, .markdown code { font-family: var(--font-mono, ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace); font-variant-numeric: tabular-nums; }
 main { display: flow-root; min-height: 100dvh; max-width: var(--page-width); margin: 0 auto; padding-top: var(--page-top); }
 .page-footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 0; padding: 24px 12px max(32px, env(safe-area-inset-bottom)); color: var(--faint); font-size: 11px; }
 .page-footer span { white-space: nowrap; }
@@ -140,6 +140,7 @@ details.problem[open] summary .chev, .row.open .toggle .chev { transform: rotate
 /* Short columns are fixed. Credential, result and model tracks share the rest equally up to their caps;
    any remaining space is spread evenly across the gaps. */
 #candy-panel { --toolbar-columns: 200px 120px 84px minmax(0, 1fr); --list-columns: var(--list-checkbox) var(--credential-track) var(--result-track) 56px var(--marks-width) var(--switch-width) var(--action-width); }
+#siwc-panel { --toolbar-columns: 200px minmax(0, 1fr); --list-columns: var(--list-checkbox) var(--credential-track) var(--result-track) 84px var(--switch-width) var(--action-width); }
 #fingerprint-panel { --toolbar-columns: 200px 84px minmax(0, 1fr); --list-columns: var(--list-checkbox) var(--credential-track) var(--result-track) minmax(104px, 160px) 84px var(--switch-width) var(--action-width); }
 #pelican-panel { --toolbar-columns: 200px 120px 120px minmax(0, 1fr); --preview-scale: .15; --list-columns: var(--list-checkbox) var(--credential-track) var(--result-track) calc(800px * var(--preview-scale)) var(--switch-width) var(--action-width); }
 .list-head, .list-row, .history-panel { display: grid; grid-template-columns: var(--list-columns); justify-content: space-between; align-items: center; gap: var(--list-gap); padding-inline: var(--list-padding); }
@@ -366,6 +367,7 @@ dialog::backdrop { background: rgb(0 0 0 / 35%); }
   .row-meta.untested > :not(.switch) { display: none; }
   .row-meta > .switch { align-self: flex-end; margin-left: auto; }
   .row-meta > .switch::before { content: "启用"; }
+  .row-meta > .siwc-switch::before { content: "使用 SIWC"; }
   .row-meta > .marks { flex: 1; }
   .credential-head { flex-wrap: wrap; row-gap: 10px; }
   .credential-enabled-filter { margin-right: auto; }

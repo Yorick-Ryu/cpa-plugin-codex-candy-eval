@@ -6,12 +6,14 @@
 - 直接复用 OMC 的 `createThemeConfig`、`StatTiles` 和 `StatusLabel` 源码，保留其 MIT 许可。
 - 自动跟随 OMC 的深浅色、自定义配色和字体；独立页面跟随系统主题。
 - 凭证默认按优先级从高到低排列，同优先级保留原有的套餐与来源顺序；AI 供应商始终放在底部，并保留供应商原顺序。
-- 同步上游 v0.4.0 的糖果题、指纹检测、画鹈鹕三种测试，保留当前筛选范围的凭证概览。旧指纹与 ModelTrace 已移除，升级前请备份历史文件；糖果题和鹈鹕记录仍兼容。
+- 同步上游 v0.4.6，支持糖果题、Ciallo、指纹检测、画鹈鹕及 SIWC 检测，保留当前筛选范围的凭证概览。SIWC 页支持绑定状态、通道开关、结果分类和独立历史。
+- 嵌入 OMCPA 时复用宿主登录会话，不读取旧面板密钥、不持久保存共享会话的模型缓存；独立打开仍支持 CPA 管理密钥。
+- 历史由 schema 2 升级到 schema 3，自动保留原文件为 `.v2.json`；糖果题、Ciallo、指纹与鹈鹕记录保留。回滚旧插件前需备份最新历史并将 schema 降回 2，新 SIWC 历史需单独保留。
 - 插件 ID 为 `omcpa-codex-candy-eval`，与原版 `cpa-codex-candy-eval` 独立，可同时加载；接口、测试记录和浏览器偏好分别保存。
 
 从旧 OMC 版本升级：自 `v0.4.0-omc.3` 起使用独立 ID。安装新插件后，旧版配置和历史文件不会被自动修改。需要迁移记录时，先确认两边都没有运行测试，再将 `plugins/cpa-codex-candy-eval-state.json` 复制到 `plugins/omcpa-codex-candy-eval-state.json`，然后加载新插件；已有新历史时不要覆盖。定时巡检脚本也需将插件接口改为新 ID。
 
-验证：`npm ci --prefix web`、`npm --prefix web run check`、`npm --prefix web run build`、`node scripts/test-react.mjs`、`node scripts/test-components.cjs`、`node scripts/test-theme.cjs`、`go vet ./...`、`go test -race ./...`。
+验证：`npm ci --prefix web`、`npm --prefix web run check`、`npm --prefix web run build`、`node scripts/test-react.mjs`、`node scripts/test-components.cjs`、`node scripts/test-theme.cjs`、`node scripts/test-scroll.cjs`、`go vet ./...`、`go test -race ./...`。
 
 本地预览：`node scripts/preview.cjs`，打开 `http://127.0.0.1:4178`；使用本地合成凭证和 API 模拟服务，不连接生产 CPA。
 
@@ -27,7 +29,7 @@
 
 # 降智测试（CLIProxyAPI 插件）
 
-在 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 管理面板中用**糖果题**、**指纹检测**和**画鹈鹕**测试 Codex 凭证。
+在 [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) 管理面板中用**糖果题**、**指纹检测**、**画鹈鹕**和 **SIWC 检测**测试 Codex 凭证。
 
 ![example](docs/images/example.png)
 
@@ -39,7 +41,7 @@
 
 ### 插件商店
 
-CPA 管理面板（CPAMC 或 CPAMP）插件商店搜索安装 `omcpa-codex-candy-eval`，并在面板左侧打开「降智测试」。
+CPA 管理面板（CPAMC、CPAMP 或 Oh My CPA）插件商店搜索安装 `omcpa-codex-candy-eval`，并在面板左侧打开「降智测试」。
 
 ### 人工安装
 
@@ -91,13 +93,19 @@ plugins:
 
 列表和历史记录显示缩略画面，点击即可放大查看，动画在放大后播放。
 
+### SIWC 检测
+
+在 CPA 的「OAuth 登录」中绑定 SIWC，开启凭证的「使用 SIWC」，选择模型后点击「检测」。未绑定的 Codex 凭证会提示先绑定。
+
+`use_siwc` 关闭时无法检测，开启后也会用于该凭证的非 Codex 客户端请求。检测结果区分 SIWC 可用、订阅共享受限、认证异常和额度限制，可作为账号风控的参考。
+
 ### 记录与额度
 
-- 测试会消耗凭证额度。每次请求都以新会话的完整 Codex CLI 上下文发出，输入约 1.4 万 Token。
+- 测试会消耗凭证额度。糖果题、指纹检测和画鹈鹕每次请求都以新会话的完整 Codex CLI 上下文发出，输入约 1.4 万 Token；SIWC 检测仅发送简短请求。
 - 每个凭证的每种测试都保留最近 20 次记录，刷新或重启后仍可查看。
 - 点击标签栏右侧的垃圾桶可清空全部测试记录；凭证列表右上角的垃圾桶只清空当前测试的记录。
-- 单次请求有时间限制：指纹检测 3 分钟，糖果题和画鹈鹕 10 分钟。超时的请求会被中断。
-- 请求中断、超时、上游服务出错，或回答无法用于测试（如指纹检测的有效数字不足、画鹈鹕的回答中没有代码）时，插件会重新发送该请求，同一请求最多发送 3 次。凭证冷却、额度用尽等请求被拒绝的情况不重试，糖果题答错也不重试。耗时和 Token 包含所有重试。
+- 单次请求有时间限制：SIWC 检测 1 分钟，指纹检测 3 分钟，糖果题和画鹈鹕 10 分钟。超时的请求会被中断。
+- SIWC 检测仅请求一次；其他测试遇到请求失败或无效回答时最多尝试 3 次。凭证冷却、额度用尽及糖果题答错不重试。耗时和 Token 包含所有重试；CPA 自身的重试由其配置决定。
 
 ### 定时巡检
 

@@ -12,7 +12,7 @@
 
 - `cmd/cpa-codex-candy-eval/`: shared-library entry point and C ABI bridge.
 - `internal/plugin/`: plugin handlers, test runners, persistence, and Go tests.
-- `web/src/`: React/Ant Design management page and vendored OMC components.
+- `web/src/`: React/Base UI management page and vendored OMC components.
 - `internal/plugin/web/react/`: committed frontend bundle embedded by Go; rebuild from `web/`.
 - `internal/plugin/web/`: host theme bridge, vendor renderers, and legacy identity/catalog helpers.
 - `internal/plugin/web/vendor/`: vendored Markdown (markdown-it with

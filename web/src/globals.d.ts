@@ -4,7 +4,7 @@ declare module "*.module.css" {
 }
 declare module "legacy" {
   export const configure: (key: string, auths?: any[]) => void;
-  export const openCatalogCache: (key: string) => Promise<void>;
+  export const openCatalogCache: (key: string | null) => Promise<void>;
   export const refreshCatalog: (options?: any) => Promise<void>;
   export const resetCatalogCache: () => void;
   export const pruneCredentialCatalog: () => void;

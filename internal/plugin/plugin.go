@@ -3,11 +3,9 @@ package plugin
 
 import (
 	"context"
-	_ "embed"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"html"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,7 +14,7 @@ import (
 
 const (
 	pluginID      = "omcpa-codex-candy-eval"
-	pluginVersion = "0.4.5-omc.4"
+	pluginVersion = "0.4.6-omc.1"
 	ABIVersion    = 1
 	// rpcSchemaVersion is the version of CPA's plugin RPC contract, not of the state file.
 	rpcSchemaVersion = 6
@@ -29,63 +27,6 @@ var hostCall func(method string, payload any) (json.RawMessage, error)
 func SetHostCall(call func(string, any) (json.RawMessage, error)) {
 	hostCall = call
 }
-
-//go:embed web/ui.html
-var uiTemplate string
-
-//go:embed web/react/app.css
-var uiStyles string
-
-//go:embed web/theme.js
-var themeScript string
-
-//go:embed web/vendor/markdown-it.min.js
-var markdownScript string
-
-//go:embed web/vendor/markdown-it-cjk-friendly.min.js
-var cjkFriendlyScript string
-
-//go:embed web/vendor/texmath.js
-var texmathScript string
-
-//go:embed web/vendor/temml.min.js
-var temmlScript string
-
-//go:embed web/vendor/temml.css
-var temmlStyles string
-
-//go:embed web/react/app.js
-var appScript string
-
-//go:embed web/omc-license.txt
-var omcLicense string
-
-var uiHTML = func() []byte {
-	config, _ := json.Marshal(map[string]any{
-		"detection":        map[string]any{"requests": fingerprintTarget, "aliases": fingerprintAliases},
-		"pelican_variants": pelicanVariants,
-	})
-	return []byte(strings.NewReplacer(
-		"/*APP_STYLES*/", temmlStyles+"\n"+uiStyles,
-		"<!--PLUGIN_VERSION-->", pluginVersion,
-		"<!--CANDY_PROMPT-->", html.EscapeString(candyPrompt),
-		"<!--PELICAN_PROMPT-->", html.EscapeString(pelicanVariants[0].Prompt),
-		"<!--DETECTOR_LICENSE-->", "<!-- LM Fingerpoint Detector\n"+detectorLicense+"-->",
-		"<!--OMC_LICENSE-->", "<!-- Oh My CPA components\n"+omcLicense+"-->",
-		"/*REACT_CONFIG*/{}", string(config),
-		"/*MARKDOWN_SCRIPT*/", markdownScript,
-		"/*CJK_FRIENDLY_SCRIPT*/", cjkFriendlyScript,
-		"/*TEXMATH_SCRIPT*/", texmathScript,
-		"/*TEMML_SCRIPT*/", temmlScript,
-		"/*APP_SCRIPT*/", appScript,
-		"/*THEME_SCRIPT*/", themeScript,
-	).Replace(uiTemplate))
-}()
-
-var browserPage = splitStaticPage(uiHTML)
-
-// Lucide "candy" icon. Hosts render it in an img element, so the stroke color is fixed.
-const logoSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#72787c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><style>@media (prefers-color-scheme: dark) { :root { stroke: #9c9d9b; } }</style><path d="M10 7v10.9"/><path d="M14 6.1V17"/><path d="M16 7V3a1 1 0 0 1 1.707-.707 2.5 2.5 0 0 0 2.152.717 1 1 0 0 1 1.131 1.131 2.5 2.5 0 0 0 .717 2.152A1 1 0 0 1 21 8h-4"/><path d="M16.536 7.465a5 5 0 0 0-7.072 0l-2 2a5 5 0 0 0 0 7.07 5 5 0 0 0 7.072 0l2-2a5 5 0 0 0 0-7.07"/><path d="M8 17v4a1 1 0 0 1-1.707.707 2.5 2.5 0 0 0-2.152-.717 1 1 0 0 1-1.131-1.131 2.5 2.5 0 0 0-.717-2.152A1 1 0 0 1 3 16h4"/></svg>`
 
 var (
 	mu    sync.Mutex
@@ -208,6 +149,8 @@ var routes = func() []route {
 		{http.MethodPost, "/pelican/run", "Run the pelican test on credentials", withBody(pelicanRunResponse)},
 		{http.MethodGet, "/pelican/record", "View a pelican test record", viewRecord("pelican")},
 		{http.MethodDelete, "/pelican/records", "Clear pelican test records", clearRecords("pelican")},
+		{http.MethodPost, "/siwc/run", "Check SIWC on Codex credentials", withBody(siwcRunResponse)},
+		{http.MethodDelete, "/siwc/records", "Clear SIWC test records", clearRecords("siwc")},
 		{http.MethodPost, "/inspection", "Inspect credentials with the candy test or fingerprint detection", withBody(inspectionRunResponse)},
 		{http.MethodGet, "/inspection", "View the latest inspection of a test", func(req managementRequest) managementResponse { return inspectionResponse(req.Query.Get("test")) }},
 	}
@@ -247,6 +190,7 @@ type credentialView struct {
 	Candies      []candyRecord       `json:"candies"`
 	Fingerprints []fingerprintRecord `json:"fingerprints"`
 	Pelicans     []pelicanRecord     `json:"pelicans"`
+	SIWC         []siwcRecord        `json:"siwc"`
 }
 
 func stateResponse() managementResponse {
@@ -257,7 +201,7 @@ func stateResponse() managementResponse {
 	// Host calls must stay outside the records lock.
 	for i := range auths {
 		if auths[i].Source == credentialSourceFile && auths[i].Provider == "codex" {
-			auths[i].PlanType = authPlanType(auths[i])
+			auths[i] = enrichCodexCredential(auths[i])
 		}
 	}
 	mu.Lock()
@@ -270,6 +214,7 @@ func stateResponse() managementResponse {
 			Candies:      append([]candyRecord{}, records.Candies[auth.ID]...),
 			Fingerprints: summaries(records.Fingerprints[auth.ID]),
 			Pelicans:     summaries(records.Pelicans[auth.ID]),
+			SIWC:         append([]siwcRecord{}, records.SIWC[auth.ID]...),
 		}
 		for j, r := range views[i].Candies {
 			views[i].Candies[j] = withCialloVerdict(r)
