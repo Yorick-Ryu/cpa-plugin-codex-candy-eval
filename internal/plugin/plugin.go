@@ -16,7 +16,7 @@ import (
 
 const (
 	pluginID      = "omcpa-codex-candy-eval"
-	pluginVersion = "0.4.5-omc.2"
+	pluginVersion = "0.4.5-omc.3"
 	ABIVersion    = 1
 	// rpcSchemaVersion is the version of CPA's plugin RPC contract, not of the state file.
 	rpcSchemaVersion = 6
@@ -35,9 +35,6 @@ var uiTemplate string
 
 //go:embed web/react/app.css
 var uiStyles string
-
-//go:embed web/theme.css
-var uiThemes string
 
 //go:embed web/theme.js
 var themeScript string
@@ -69,7 +66,7 @@ var uiHTML = func() []byte {
 		"pelican_variants": pelicanVariants,
 	})
 	return []byte(strings.NewReplacer(
-		"/*APP_STYLES*/", temmlStyles+"\n"+uiThemes+"\n"+uiStyles,
+		"/*APP_STYLES*/", temmlStyles+"\n"+uiStyles,
 		"<!--PLUGIN_VERSION-->", pluginVersion,
 		"<!--CANDY_PROMPT-->", html.EscapeString(candyPrompt),
 		"<!--PELICAN_PROMPT-->", html.EscapeString(pelicanVariants[0].Prompt),

@@ -98,8 +98,6 @@ function page() {
       () =>
         read("vendor/temml.css") +
         "\n" +
-        read("theme.css") +
-        "\n" +
         read("react/app.css"),
     )
     .replace("/*REACT_CONFIG*/{}", () => JSON.stringify(config))

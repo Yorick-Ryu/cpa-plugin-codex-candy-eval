@@ -1,12 +1,13 @@
-import React, { useMemo } from "react";
 import {
-  Alert,
-  Collapse,
-  Descriptions,
-  Progress,
-  Table,
-} from "antd";
-import { StatusLabel } from "./omc/common/StatusLabel";
+  DetailList,
+  DisclosureList,
+  Notice,
+  ProgressMeter,
+  RecordTable,
+} from "./presentation";
+import React, { useMemo } from "react";
+
+import { StatusLabel } from "./omc-next/components/common/StatusLabel";
 import { fmtTime, percent, verdict, type RecordData, type Test } from "./model";
 const md = window
   .markdownit({ breaks: true })
@@ -22,7 +23,7 @@ export function Answer({ record }: { record: RecordData }) {
     [record.answer, record.error],
   );
   return record.error ? (
-    <Alert type="error" title={record.error} showIcon />
+    <Notice type="error" title={record.error} showIcon />
   ) : (
     <div
       className="answer-markdown"
@@ -34,7 +35,9 @@ export function RecordMeta({ record: r }: { record: RecordData }) {
   return (
     <div className="record-meta">
       <span>{fmtTime(r.time)}</span>
-      {r.method && <span>{r.method === "ciallo" ? "Ciallo 回复规则" : "糖果题"}</span>}
+      {r.method && (
+        <span>{r.method === "ciallo" ? "Ciallo 回复规则" : "糖果题"}</span>
+      )}
       {r.verdict_rule && <span>按 ciallo / ciao 词语规则判定</span>}
       <span>
         {r.model}
@@ -64,7 +67,7 @@ export function RecordDetail({
     <div className="record-detail">
       <RecordMeta record={r} />
       <StatusLabel tone={state.tone}>{state.label}</StatusLabel>
-      {r.error && <Alert type="error" showIcon title={r.error} />}
+      {r.error && <Notice type="error" showIcon title={r.error} />}
       {(test === "candy" || test === "ciallo") && <Answer record={r} />}
       {test === "pelican" && r.html && (
         <iframe
@@ -78,12 +81,20 @@ export function RecordDetail({
         <>
           {r.attribution && a.decision !== "not_model" && (
             <>
-              <p className="secondary">{state.tone === "success" ? "与测试模型一致" : "与测试模型不一致"}</p>
-              <Descriptions
+              <p className="secondary">
+                {state.tone === "success"
+                  ? "与测试模型一致"
+                  : "与测试模型不一致"}
+              </p>
+              <DetailList
                 size="small"
                 bordered
                 items={[
-                  { key: "p", label: "最接近的模型", children: a.prediction_name || a.prediction },
+                  {
+                    key: "p",
+                    label: "最接近的模型",
+                    children: a.prediction_name || a.prediction,
+                  },
                   {
                     key: "prob",
                     label: "归因概率",
@@ -101,9 +112,13 @@ export function RecordDetail({
                   },
                 ]}
               />
-              {a.probability == null && <p className="secondary">有效回答不足三条，仅给出排名，不计算归因概率。</p>}
+              {a.probability == null && (
+                <p className="secondary">
+                  有效回答不足三条，仅给出排名，不计算归因概率。
+                </p>
+              )}
               <h3>候选模型排行</h3>
-              <Table
+              <RecordTable
                 size="small"
                 pagination={false}
                 rowKey="model"
@@ -116,30 +131,45 @@ export function RecordDetail({
                   {
                     title: "归因概率",
                     dataIndex: "probability",
-                    render: (v: number | null) => v == null ? "—" : (
-                      <Progress
-                        percent={Math.max(0, Math.min(100, v * 100))}
-                        format={() => percent(v)}
-                      />
-                    ),
+                    render: (v: number | null) =>
+                      v == null ? (
+                        "—"
+                      ) : (
+                        <ProgressMeter
+                          percent={Math.max(0, Math.min(100, v * 100))}
+                          format={() => percent(v)}
+                        />
+                      ),
                   },
                 ]}
               />
             </>
           )}
-          {a.decision === "not_model" && <Alert type="warning" showIcon title="相邻数字的变化方式与参考库中的语言模型不同，因此未生成排名。" />}
+          {a.decision === "not_model" && (
+            <Notice
+              type="warning"
+              showIcon
+              title="相邻数字的变化方式与参考库中的语言模型不同，因此未生成排名。"
+            />
+          )}
           {r.status === "partial" && <p className="secondary">部分结果</p>}
           <h3>挑战记录</h3>
-          <Collapse
+          <DisclosureList
             items={(r.samples || []).map((s: any, i: number) => ({
-              key: i,
+              key: String(i),
               label: `挑战 ${i + 1} · ${s.parsed_numbers} / ${s.expected_count} 个数字 · ${s.accepted ? "有效" : "未计入"}`,
               children: (
                 <>
                   <p className="secondary">请求次数 {s.attempts || 1}</p>
-                  {s.instructions && <><h3>开发者指令</h3><pre>{s.instructions}</pre></>}
-                  <h3>提示词</h3><pre>{s.prompt}</pre>
-                  {s.error && <Alert type="error" title={s.error} />}
+                  {s.instructions && (
+                    <>
+                      <h3>开发者指令</h3>
+                      <pre>{s.instructions}</pre>
+                    </>
+                  )}
+                  <h3>提示词</h3>
+                  <pre>{s.prompt}</pre>
+                  {s.error && <Notice type="error" title={s.error} />}
                   <pre>{s.text}</pre>
                 </>
               ),

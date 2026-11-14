@@ -57,9 +57,6 @@ func splitStaticPage(source []byte) staticPage {
 					return uri
 				}
 				fallback := result.addAsset(font, "woff2", "font/woff2")
-				if shared := omcFontResource(font); shared != "" {
-					return []byte(`url("` + shared + `") format("woff2"),url("` + fallback + `")`)
-				}
 				return []byte(`url("` + fallback + `")`)
 			})
 		}
@@ -103,17 +100,4 @@ func (page staticPage) resources(menu, description string) []map[string]string {
 		resources = append(resources, map[string]string{"Path": path})
 	}
 	return resources
-}
-
-// These are the existing OMC Vite assets for the exact vendored Sarasa faces.
-// Match bytes, not family labels: a future changed font must not silently use
-// another version. The plugin URL remains a fallback for standalone hosts.
-func omcFontResource(font []byte) string {
-	switch fmt.Sprintf("%x", sha256.Sum256(font)) {
-	case "d8a2c59dc53fde63afa6beddb6908498d09c57d09a3e90e88b314003cff749b7":
-		return "/omc/assets/sarasa-mono-sc-400-000-CKzN0e0Y.woff2"
-	case "8a3f31f795e116f47f1d767986c3f699bdc808102ffd2133168bdb834525dc22":
-		return "/omc/assets/sarasa-mono-sc-700-000-BeaBM8Sg.woff2"
-	}
-	return ""
 }

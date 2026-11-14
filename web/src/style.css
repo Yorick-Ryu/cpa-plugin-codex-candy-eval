@@ -1,15 +1,4 @@
 :root {
-  --text-2xs: 10px;
-  --text-xs: 11px;
-  --text-sm: 12px;
-  --text-md: 13px;
-  --text-base: 14px;
-  --text-lg: 16px;
-  --text-xl: 20px;
-  --radius-xs: 2px;
-  --motion-fast: 120ms;
-  --motion-base: 180ms;
-  --hover-inset: var(--surface);
   font-family: var(--font-ui);
   color: var(--fg);
   background: var(--bg);
@@ -30,7 +19,7 @@ input {
   font-family: inherit;
 }
 button svg,
-.ant-btn-icon svg,
+[data-slot="button-icon"] svg,
 .tab-label svg {
   vertical-align: middle;
   flex: none;
@@ -81,12 +70,6 @@ h3 {
 :root[data-omc-host] .standalone-heading {
   display: none;
 }
-.evaluation-page > .ant-tabs {
-  margin-top: 0;
-}
-.evaluation-page > .ant-tabs > .ant-tabs-nav {
-  margin: 0;
-}
 .tab-label {
   display: inline-flex;
   align-items: center;
@@ -98,20 +81,6 @@ h3 {
 }
 .test-intro > p {
   margin: 0 0 4px;
-}
-.test-intro .ant-collapse-header {
-  padding: 4px 0 !important;
-  color: var(--muted) !important;
-  font-size: 12px;
-}
-.test-intro .ant-collapse-body {
-  padding: 8px 0 0 !important;
-}
-.test-intro .ant-collapse-content-box {
-  padding: 8px 0 0 !important;
-}
-.test-intro .ant-collapse-expand-icon {
-  padding-inline-end: 4px !important;
 }
 .principle a {
   display: inline-flex;
@@ -130,16 +99,7 @@ h3 {
   padding-right: 44px;
   margin: 0;
 }
-.prompt-text .ant-typography-copy {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-}
-.test-controls.ant-card {
-  background: var(--surface);
-  border-color: var(--border);
-}
-.test-controls .ant-card-body {
+.test-controls [data-slot="panel-body"] {
   padding: 16px;
 }
 .control-form {
@@ -148,24 +108,24 @@ h3 {
   align-items: flex-end;
   flex-wrap: wrap;
 }
-.control-form .ant-form-item {
+.control-form .form-field {
   margin: 0;
   width: 112px;
   min-width: 0;
   flex: 0 0 auto;
 }
-.control-form .ant-form-item:first-child {
+.control-form .form-field:first-child {
   width: 212px;
 }
-.control-form .ant-form-item-label {
+.control-form .form-field-label {
   padding: 0 0 6px;
 }
-.control-form .ant-form-item-label > label {
+.control-form .form-field-label > label {
   font-size: 12px;
   color: var(--muted);
   height: auto;
 }
-.control-form .ant-input-number {
+.control-form [data-slot="number-input"] {
   width: 100%;
 }
 .control-form .batch-control {
@@ -197,30 +157,30 @@ h3 {
   background: var(--surface);
   flex-wrap: wrap;
 }
-.credential-toolbar .ant-select {
+.credential-toolbar [data-slot="select-trigger"] {
   min-width: 150px;
   max-width: 240px;
 }
-.credential-toolbar .ant-input-search {
+.credential-toolbar input[type="search"] {
   width: 190px;
 }
 .credential-toolbar strong {
   font-size: 13px;
   font-weight: 600;
 }
-.credential-table .ant-table {
+.credential-table [data-slot="table"] {
   border-radius: 0;
 }
-.credential-table .ant-table-container {
+.credential-table [data-record-table] {
   border-radius: 0 !important;
 }
 /* The toolbar owns the panel's top edge; the header is an interior row. */
-.credential-table .ant-table-thead > tr > th {
+.credential-table [data-slot="table-header"] > tr > th {
   border-radius: 0 !important;
   font-size: 12px;
   font-weight: 500;
 }
-.credential-table .ant-table-tbody > tr > td {
+.credential-table [data-slot="table-body"] > tr > td {
   vertical-align: middle;
 }
 .credential-cell {
@@ -232,13 +192,6 @@ h3 {
 .credential-name {
   max-width: 100%;
   font-size: 13px;
-}
-.credential-cell .ant-tag {
-  margin: 0;
-  font-size: 11px;
-  line-height: 18px;
-  color: var(--fg-2);
-  border-color: var(--border);
 }
 .masked {
   color: var(--muted);
@@ -261,17 +214,13 @@ h3 {
   white-space: nowrap;
   max-width: 225px;
 }
-.result-cell .ant-progress {
-  margin: 0;
-  width: 180px;
-}
 .result-marks {
   display: flex;
   gap: 2px;
   flex-wrap: wrap;
   width: 140px;
 }
-.result-mark.ant-btn {
+.result-mark[data-slot="button"] {
   min-width: 12px !important;
   width: 12px;
   height: 16px;
@@ -311,12 +260,6 @@ h3 {
 .history {
   padding: 12px 8px;
 }
-.history > .ant-collapse {
-  background: var(--bg);
-}
-.history .ant-collapse-header {
-  font-size: 12px;
-}
 .record-meta {
   display: flex;
   gap: 6px 16px;
@@ -349,9 +292,6 @@ h3 {
   border-radius: var(--radius-md);
   padding: 14px;
 }
-.detail-stats .ant-statistic-content {
-  font-size: 20px;
-}
 .baseline-select {
   width: min(100%, 300px);
 }
@@ -359,9 +299,6 @@ h3 {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-}
-.family-tags .ant-tag {
-  margin: 0;
 }
 .pelican-frame {
   display: block;
@@ -426,9 +363,6 @@ h3 {
 .login-card {
   width: min(100%, 400px);
 }
-.login-card .ant-alert {
-  margin-bottom: 16px;
-}
 .page-footer {
   display: flex;
   flex-wrap: wrap;
@@ -482,16 +416,13 @@ h3 {
   .tab-label svg {
     display: none;
   }
-  .ant-tabs .ant-tabs-tab + .ant-tabs-tab {
-    margin-left: 16px;
-  }
   .control-form {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px;
   }
-  .control-form .ant-form-item,
-  .control-form .ant-form-item:first-child {
+  .control-form .form-field,
+  .control-form .form-field:first-child {
     width: auto;
     min-width: 0;
   }
@@ -499,21 +430,17 @@ h3 {
     margin: 0;
     align-self: end;
   }
-  .batch-control .ant-btn {
+  .batch-control [data-slot="button"] {
     width: 100%;
   }
   .credential-toolbar {
     align-items: stretch;
     gap: 10px;
   }
-  .credential-toolbar > .ant-space {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .credential-toolbar .ant-input-search {
+  .credential-toolbar input[type="search"] {
     width: min(230px, calc(100vw - 128px));
   }
-  .credential-toolbar .ant-select {
+  .credential-toolbar [data-slot="select-trigger"] {
     min-width: 130px;
     max-width: calc(50vw - 24px);
   }
@@ -528,9 +455,9 @@ h3 {
   }
 }
 @media (pointer: coarse) {
-  .ant-input,
-  .ant-select-selection-item,
-  .ant-input-number-input {
+  [data-slot="input"],
+  [data-slot="select-value"],
+  [data-slot="number-input"] input {
     font-size: 16px !important;
   }
 }
@@ -556,7 +483,7 @@ h3 {
   transform: scale(0.15);
   transform-origin: 0 0;
 }
-.pelican-thumbnail-open.ant-btn {
+.pelican-thumbnail-open[data-slot="button"] {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -565,8 +492,8 @@ h3 {
   color: var(--fg);
   opacity: 0;
 }
-.pelican-thumbnail-open.ant-btn:hover,
-.pelican-thumbnail-open.ant-btn:focus-visible {
+.pelican-thumbnail-open[data-slot="button"]:hover,
+.pelican-thumbnail-open[data-slot="button"]:focus-visible {
   opacity: 1;
   background: var(--hover);
 }

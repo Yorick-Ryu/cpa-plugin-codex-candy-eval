@@ -1,0 +1,77 @@
+import React from 'react';
+import { Tabs } from '@/components/ui/tabs';
+import { AppstoreOutlined } from '../icons';
+import { providerDisplayName } from './providerMetadata';
+import { CredentialMark } from '../LobeIcon';
+import { type PluginOAuthLogos } from '../../types/pluginOAuthProviders';
+import { useT } from '../../i18n';
+import styles from './ProviderFilterTabs.module.css';
+
+export interface ProviderFilterTabsProps {
+  providers: string[];
+  counts: Record<string, number>;
+  active: string;
+  onChange: (provider: string) => void;
+  /** Logos published by installed plugins, keyed by the OAuth provider they register. */
+  pluginLogos?: PluginOAuthLogos;
+  /** Titles plugins give the OAuth providers they register. */
+  pluginTitles?: ReadonlyMap<string, string>;
+}
+
+/**
+ * Shared provider filter tabs built on Ant Design Tabs, bent to the
+ * terminal-flat spec:
+ * - quiet underline with a var(--fg) ink bar, never antd blue
+ * - mono count pills over var(--surface)/var(--border-soft), tabular numerals
+ * - the provider's own brand mark, from its plugin when a plugin owns it and from
+ *   the vendored catalog otherwise (Codex, Claude, Antigravity, xAI, Kimi, Devin,
+ *   Meta, and any plugin-registered provider)
+ *
+ */
+export const ProviderFilterTabs: React.FC<ProviderFilterTabsProps> = ({
+  providers,
+  counts,
+  active,
+  onChange,
+  pluginLogos,
+  pluginTitles,
+}) => {
+  const t = useT();
+
+  const items = providers.map((provider) => {
+    const isAll = provider === 'all';
+    const isActive = provider === active;
+    const label = isAll ? t('common.all') : providerDisplayName(provider, pluginTitles);
+    const count = counts[provider] ?? 0;
+
+    return {
+      key: provider,
+      label: (
+        <span className="inline-flex items-center gap-1.5">
+          <span className={styles['tab-icon']}>
+            {!isAll ? (
+              <CredentialMark credential={{ provider, hint: label }} pluginLogos={pluginLogos} size={15} />
+            ) : (
+              <AppstoreOutlined style={{ fontSize: 14, color: isActive ? 'var(--fg)' : 'var(--meta)' }} />
+            )}
+          </span>
+          <span>{label}</span>
+          <span className={`${styles['tab-count']} ${isActive ? styles['tab-count-active'] : ''}`}>
+            {count}
+          </span>
+        </span>
+      ),
+    };
+  });
+
+  return (
+    <div className={styles['tabs-wrap']}>
+      <Tabs
+        activeKey={active}
+        onChange={onChange}
+        items={items}
+        size="small"
+      />
+    </div>
+  );
+};

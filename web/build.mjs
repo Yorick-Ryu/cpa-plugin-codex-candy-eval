@@ -1,3 +1,5 @@
+import { compile } from "@tailwindcss/node";
+import { Scanner } from "@tailwindcss/oxide";
 import { build } from "esbuild";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -29,6 +31,27 @@ const legacy = {
     }));
   },
 };
+const omcStyles = {
+  name: "omc-v041-css",
+  setup(b) {
+    b.onLoad({ filter: /omc-next\/index\.css$/ }, async (args) => {
+      const result = await compile(readFileSync(args.path, "utf8"), {
+        base: path.dirname(args.path),
+        onDependency() {},
+      });
+      const scanner = new Scanner({
+        sources: [
+          { base: path.join(root, "web/src"), pattern: "**/*", negated: false },
+        ],
+      });
+      return {
+        contents: result.build(scanner.scan()),
+        loader: "css",
+        resolveDir: path.dirname(args.path),
+      };
+    });
+  },
+};
 await build({
   entryPoints: [path.join(dir, "src/main.tsx")],
   bundle: true,
@@ -37,7 +60,8 @@ await build({
   target: ["es2022"],
   format: "iife",
   jsx: "automatic",
-  plugins: [legacy],
+  plugins: [legacy, omcStyles],
+  alias: { "@": path.join(root, "web/src/omc-next") },
   define: { "process.env.NODE_ENV": '"production"' },
   legalComments: "eof",
 });

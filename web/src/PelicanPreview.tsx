@@ -1,5 +1,6 @@
+import { Button, Spinner, Tooltip } from "./presentation";
 import React, { useEffect, useState } from "react";
-import { Button, Spin, Tooltip } from "antd";
+
 import { Eye } from "lucide-react";
 import { api, BASE } from "./api";
 const cache = new Map<string, string>();
@@ -54,10 +55,10 @@ export function PelicanPreview({
         ) : error ? (
           <span className="secondary">加载失败</span>
         ) : (
-          <Spin size="small" />
+          <Spinner size="small" />
         )}
         <Button
-          type="text"
+          variant="ghost"
           aria-label="放大查看鹈鹕动画"
           className="pelican-thumbnail-open"
           icon={<Eye size={14} />}

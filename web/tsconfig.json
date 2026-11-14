@@ -14,7 +14,13 @@
     "allowJs": true,
     "resolveJsonModule": true,
     "noEmit": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/omc-next/*"
+      ]
+    }
   },
   "include": [
     "src"

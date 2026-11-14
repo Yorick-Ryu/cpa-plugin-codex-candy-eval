@@ -11,18 +11,20 @@ retired histories. Candy and pelican histories remain compatible. `web/src/main.
 interface; the build reuses the original credential identities and model-catalog
 logic through `web/build.mjs`.
 
-OMC source is vendored under `web/src/omc/` with its MIT license and snapshot
-commit. The UI directly imports its theme projection, counted filter tiles and
-status labels. Other controls use Ant Design 6.6.2, React 18.3.1 and Lucide,
-matching the reference console. The bundle is embedded in the shared library;
-there is no CDN dependency or dependency on OMC's hashed JavaScript files.
+The entire interface uses React 19, Base UI and Tailwind with the deployed
+OMCPA v0.4.1 source (`741ce155da4b6bd0f718f51cfb36b12c4a876690`).
+Controls, modal, filter tiles, checkbox, tabs and fields are vendored under
+`web/src/omc-next/`; the MIT license and source manifest are retained.
+`presentation.tsx` composes tables with cross-page selection and expansion,
+forms, progress, metadata and side panels. Ant Design and its theme provider
+are removed. The request and history contracts are unchanged.
 
-`internal/plugin/web/theme.js` observes accessible host ancestors, including
-OMC's intermediate theme shell. It copies appearance tokens and loaded font
-faces, without reading host storage. React updates its ConfigProvider in place,
-so switching mode, palette or font preserves the active test and open history.
-Independent pages follow the system colour scheme. Authentication retains the
-upstream management-key contract; OMC still validates the page's credentials.
+The appearance bridge copies public CSS tokens and font-face declarations from
+same-origin ancestors, resolving font URLs against the host stylesheet rather
+than baking its build hashes into the plugin. Runtime font-library faces follow
+the host too. Independent pages use system light/dark mode and bundled Sarasa
+regular, semibold and bold core faces. Updating theme or fonts preserves active
+tests and open details. No console API or host storage is read by this bridge.
 
 ## Build and verify
 

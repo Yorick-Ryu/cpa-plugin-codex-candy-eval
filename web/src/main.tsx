@@ -1,30 +1,34 @@
+import { Toaster } from "./presentation";
+import "./omc-next/index.css";
+import {
+  AppModal,
+  Badge,
+  Button,
+  ChoiceSelect,
+  DisclosureList,
+  EmptyState,
+  FormField,
+  FormLayout,
+  Input,
+  Notice,
+  NumberInput,
+  Panel,
+  Paragraph,
+  PasswordInput,
+  ProgressMeter,
+  RecordTable,
+  SearchInput,
+  Spinner,
+  Stack,
+  Tabs,
+  Text,
+  Tooltip,
+  toast,
+} from "./presentation";
 import { recordsFor } from "./model";
-import "./omc/fonts.css";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import {
-  App as AntApp,
-  Alert,
-  Button,
-  Card,
-  Collapse,
-  ConfigProvider,
-  Empty,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Progress,
-  Select,
-  Space,
-  Spin,
-  Table,
-  Tabs,
-  Tag,
-  Tooltip,
-  Typography,
-} from "antd";
-import zhCN from "antd/locale/zh_CN";
+
 import {
   Candy,
   Hand,
@@ -37,12 +41,11 @@ import {
   ExternalLink,
   Square,
 } from "lucide-react";
-import { Switch } from "./omc/common/Switch";
-import { ProviderFilterTabs } from "./omc/components/common/ProviderFilterTabs";
+import { Switch } from "./omc-next/components/common/Switch";
+import { ProviderFilterTabs } from "./omc-next/components/common/ProviderFilterTabs";
 import { ProviderBrandIcon } from "./omc/common/ProviderBrandIcon";
-import { StatTiles } from "./omc/common/StatTiles";
-import { StatusLabel } from "./omc/common/StatusLabel";
-import { useOmcTheme } from "./theme";
+import { StatTiles } from "./omc-next/components/common/StatTiles";
+import { StatusLabel } from "./omc-next/components/common/StatusLabel";
 import {
   api,
   BASE,
@@ -80,7 +83,6 @@ import {
 import { Answer, RecordDetail, RecordMeta } from "./RecordDetail";
 import { PelicanPreview } from "./PelicanPreview";
 import "./style.css";
-import "./omc/appearance.css";
 const config = window.CANDY_CONFIG;
 const pref = (name: string, fallback: any) => {
   try {
@@ -88,7 +90,9 @@ const pref = (name: string, fallback: any) => {
       localStorage.getItem("omcpa-codex-candy-eval.omc.v2." + name) || "null",
     );
     if (name === "settings" && v && typeof v === "object")
-      return Object.fromEntries(Object.keys(tests).map(t => [t, {...fallback[t], ...v[t]}]));
+      return Object.fromEntries(
+        Object.keys(tests).map((t) => [t, { ...fallback[t], ...v[t] }]),
+      );
     return v ?? fallback;
   } catch {
     return fallback;
@@ -125,7 +129,7 @@ const promptText = (id: string) =>
   (document.getElementById(id) as HTMLTemplateElement)?.content.textContent ||
   "";
 function EvaluationApp() {
-  const { message } = AntApp.useApp();
+  const message = toast;
   const [auth, setAuth] = useState(initialKey);
   const [auths, setAuths] = useState<Credential[]>([]);
   const [models, setModels] = useState<string[]>([]);
@@ -181,12 +185,18 @@ function EvaluationApp() {
   const [clearTarget, setClearTarget] = useState<Test | "all" | null>(null);
   const stateRef = useRef(auths);
   stateRef.current = auths;
-  const request = useRef<AbortController>();
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const request = useRef<AbortController | undefined>(undefined);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const locked = useRef(false);
   const activeAuth = useRef(auth);
   activeAuth.current = auth;
-  const defaultSettings = { model: "gpt-6.1-sol", effort: "low", runs: 1, variant: "original", concurrency: config.detection.requests };
+  const defaultSettings = {
+    model: "gpt-6.1-sol",
+    effort: "low",
+    runs: 1,
+    variant: "original",
+    concurrency: config.detection.requests,
+  };
   const currentSettings = settings[active] || defaultSettings;
   const logout = useCallback((reason: string) => {
     request.current?.abort();
@@ -273,10 +283,11 @@ function EvaluationApp() {
     let changed = false;
     for (const name of Object.keys(tests) as Test[]) {
       const list =
-        name === "detection"
-          ? models.filter((m) => !/[()]/.test(m))
-          : models;
-      if (!next[name]) { next[name] = { ...defaultSettings }; changed = true; }
+        name === "detection" ? models.filter((m) => !/[()]/.test(m)) : models;
+      if (!next[name]) {
+        next[name] = { ...defaultSettings };
+        changed = true;
+      }
       if (!list.includes(next[name].model) && list.length) {
         next[name] = {
           ...next[name],
@@ -292,7 +303,7 @@ function EvaluationApp() {
     const controller = new AbortController();
     setDetailData(null);
     setDetailError("");
-    if ((detail.test === "candy" || detail.test === "ciallo")) {
+    if (detail.test === "candy" || detail.test === "ciallo") {
       setDetailData(detail.record);
       return;
     }
@@ -350,9 +361,11 @@ function EvaluationApp() {
           model: snapshot.model,
           model_catalog: await modelCatalog(ids),
         };
-        if (isReplyTest || active === "pelican")
-          body.effort = snapshot.effort;
-        if (isReplyTest) { body.runs = snapshot.runs; body.method = active; }
+        if (isReplyTest || active === "pelican") body.effort = snapshot.effort;
+        if (isReplyTest) {
+          body.runs = snapshot.runs;
+          body.method = active;
+        }
 
         if (active === "pelican") body.variant = snapshot.variant;
         if (active === "detection") body.concurrency = snapshot.concurrency;
@@ -427,7 +440,9 @@ function EvaluationApp() {
             v?.toLowerCase().includes(search.toLowerCase()),
           )),
     )
-    .sort((a, b) => compareCredentialPriority(a, b) || planRank(a) - planRank(b));
+    .sort(
+      (a, b) => compareCredentialPriority(a, b) || planRank(a) - planRank(b),
+    );
   const hasHistory = (a: Credential) => recordsFor(a, active).length > 0;
   const visible = filtered.filter(
     (a) =>
@@ -463,7 +478,7 @@ function EvaluationApp() {
                   : "测试中"}
             </StatusLabel>
             {typeof p === "object" && (
-              <Progress
+              <ProgressMeter
                 size="small"
                 percent={Math.round(
                   ((p.done || 0) / (p.total || config.detection.requests)) *
@@ -480,9 +495,14 @@ function EvaluationApp() {
             <Tooltip title={r?.error || ""}>
               <StatusLabel tone={s.tone}>{s.label}</StatusLabel>
             </Tooltip>
-            {active === "detection" && r?.attribution && r.attribution.decision !== "not_model" && (
-              <span className="secondary">{s.tone === "success" ? "与测试模型一致" : "与测试模型不一致"}{r.status === "partial" ? " · 部分结果" : ""}</span>
-            )}
+            {active === "detection" &&
+              r?.attribution &&
+              r.attribution.decision !== "not_model" && (
+                <span className="secondary">
+                  {s.tone === "success" ? "与测试模型一致" : "与测试模型不一致"}
+                  {r.status === "partial" ? " · 部分结果" : ""}
+                </span>
+              )}
             {r && (
               <>
                 <span className="secondary mono result-model">
@@ -513,7 +533,7 @@ function EvaluationApp() {
       render: (_: unknown, a: Credential) => (
         <div className="credential-cell">
           <Tooltip title={masked ? "凭证已脱敏" : a.email || a.name}>
-            <Typography.Text
+            <Text
               className={masked ? "credential-name masked" : "credential-name"}
               ellipsis
             >
@@ -522,7 +542,7 @@ function EvaluationApp() {
                 : a.source === "ai_providers"
                   ? a.base_url?.replace(/^https?:\/\//, "") || "默认地址"
                   : a.email || a.name}
-            </Typography.Text>
+            </Text>
           </Tooltip>
           {a.source === "ai_providers" && (
             <span
@@ -531,17 +551,26 @@ function EvaluationApp() {
               {masked ? "••••••••" : a.name}
             </span>
           )}
-          <Space size={[4, 4]} wrap>
-            <Tag><span className="provider-label"><ProviderBrandIcon provider={provider(a)} size={12} />{provider(a)}</span></Tag>
-            {a.provider_name && <Tag>{a.provider_name}</Tag>}
-            {credentialPlan(a) && <Tag className="subscription-label">{credentialPlan(a)!.label}</Tag>}
+          <Stack size={[4, 4]} wrap>
+            <Badge>
+              <span className="provider-label">
+                <ProviderBrandIcon provider={provider(a)} size={12} />
+                {provider(a)}
+              </span>
+            </Badge>
+            {a.provider_name && <Badge>{a.provider_name}</Badge>}
+            {credentialPlan(a) && (
+              <Badge className="subscription-label">
+                {credentialPlan(a)!.label}
+              </Badge>
+            )}
             <span className="secondary mono">P{a.priority ?? 0}</span>
             {a.unavailable && (
               <Tooltip title={unavailableReason(a)}>
                 <StatusLabel tone="warn">不可用</StatusLabel>
               </Tooltip>
             )}
-          </Space>
+          </Stack>
         </div>
       ),
     },
@@ -560,7 +589,9 @@ function EvaluationApp() {
             render: (_: unknown, a: Credential) => {
               const graded = recordsFor(a, active).filter(
                 (r) =>
-                  (active !== "ciallo" || r.verdict === "pass" || r.verdict === "fail") &&
+                  (active !== "ciallo" ||
+                    r.verdict === "pass" ||
+                    r.verdict === "fail") &&
                   r.model === currentSettings.model &&
                   (r.effort || "none") === currentSettings.effort &&
                   !r.error &&
@@ -585,28 +616,30 @@ function EvaluationApp() {
             width: 160,
             render: (_: unknown, a: Credential) => (
               <div className="result-marks">
-                {recordsFor(a, active).slice(-20).map((r, i) => {
-                  const s = verdict(r, active);
-                  const dim =
-                    r.model !== currentSettings.model ||
-                    (r.effort || "none") !== currentSettings.effort;
-                  return (
-                    <Tooltip
-                      key={i}
-                      title={`${fmtTime(r.time)} · ${r.model} · ${s.label}`}
-                    >
-                      <Button
-                        type="text"
-                        className={`result-mark tone-${s.tone} ${dim ? "is-dim" : ""}`}
-                        size="small"
-                        aria-label={`${fmtTime(r.time)} ${s.label}`}
-                        onClick={() => showDetail(a, r)}
+                {recordsFor(a, active)
+                  .slice(-20)
+                  .map((r, i) => {
+                    const s = verdict(r, active);
+                    const dim =
+                      r.model !== currentSettings.model ||
+                      (r.effort || "none") !== currentSettings.effort;
+                    return (
+                      <Tooltip
+                        key={i}
+                        title={`${fmtTime(r.time)} · ${r.model} · ${s.label}`}
                       >
-                        <span />
-                      </Button>
-                    </Tooltip>
-                  );
-                })}
+                        <Button
+                          variant="ghost"
+                          className={`result-mark tone-${s.tone} ${dim ? "is-dim" : ""}`}
+                          size="sm"
+                          aria-label={`${fmtTime(r.time)} ${s.label}`}
+                          onClick={() => showDetail(a, r)}
+                        >
+                          <span />
+                        </Button>
+                      </Tooltip>
+                    );
+                  })}
               </div>
             ),
           },
@@ -675,12 +708,10 @@ function EvaluationApp() {
       width: 100,
       fixed: "right",
       render: (_: unknown, a: Credential) => {
-        const cancellable =
-          (active === "detection") &&
-          progress(a, active);
+        const cancellable = active === "detection" && progress(a, active);
         return cancellable ? (
           <Button
-            size="small"
+            size="sm"
             icon={<Square size={12} />}
             disabled={pending || progress(a, active)?.phase === "cancelling"}
             onClick={() =>
@@ -700,14 +731,14 @@ function EvaluationApp() {
               a.disabled
                 ? "凭证已停用"
                 : busy(a)
-                    ? "凭证正在测试"
-                    : !currentSettings.model
-                      ? "请选择模型"
-                      : ""
+                  ? "凭证正在测试"
+                  : !currentSettings.model
+                    ? "请选择模型"
+                    : ""
             }
           >
             <Button
-              size="small"
+              size="sm"
               icon={<Play size={12} />}
               disabled={
                 pending ||
@@ -731,18 +762,18 @@ function EvaluationApp() {
           历史记录 <span className="secondary">{records.length}</span>
         </h3>
         {isReplyTest ? (
-          <Collapse
+          <DisclosureList
             items={records.map((r, i) => {
               const s = verdict(r, active);
               return {
-                key: records.length - 1 - i,
+                key: String(records.length - 1 - i),
                 label: (
-                  <Space wrap>
+                  <Stack wrap>
                     <StatusLabel tone={s.tone}>{s.label}</StatusLabel>
                     <span className="mono secondary">
                       {fmtTime(r.time)} · {r.model} · {r.effort || "none"}
                     </span>
-                  </Space>
+                  </Stack>
                 ),
                 children: (
                   <>
@@ -754,7 +785,7 @@ function EvaluationApp() {
             })}
           />
         ) : (
-          <Table
+          <RecordTable
             size="small"
             pagination={false}
             rowKey={(r: RecordData) => r.id || r.time}
@@ -780,8 +811,8 @@ function EvaluationApp() {
                 title: "操作",
                 render: (_: unknown, r: RecordData) => (
                   <Button
-                    type="link"
-                    size="small"
+                    variant="link"
+                    size="sm"
                     onClick={() => showDetail(a, r)}
                   >
                     查看详情
@@ -793,7 +824,7 @@ function EvaluationApp() {
         )}
       </div>
     ) : (
-      <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无测试记录" />
+      <EmptyState description="暂无测试记录" />
     );
   };
   const clearHistory = async () => {
@@ -801,7 +832,16 @@ function EvaluationApp() {
     const scope = clearTarget === "all" ? "" : tests[clearTarget].scope;
     try {
       await execute(
-        () => api(BASE + scope + "/records" + (clearTarget === "candy" || clearTarget === "ciallo" ? "?method=" + clearTarget : ""), { method: "DELETE" }),
+        () =>
+          api(
+            BASE +
+              scope +
+              "/records" +
+              (clearTarget === "candy" || clearTarget === "ciallo"
+                ? "?method=" + clearTarget
+                : ""),
+            { method: "DELETE" },
+          ),
         "测试记录已清空",
       );
       setClearTarget(null);
@@ -810,10 +850,10 @@ function EvaluationApp() {
   if (!auth)
     return (
       <main className="login-page">
-        <Card title="连接 CPA" className="login-card">
+        <Panel title="连接 CPA" className="login-card">
           <p className="secondary">使用 CPA 管理密钥访问凭证和测试记录。</p>
-          {error && <Alert type="error" showIcon title={error} />}
-          <Form
+          {error && <Notice type="error" showIcon title={error} />}
+          <FormLayout
             layout="vertical"
             onFinish={({ key }) => {
               const next = key.trim();
@@ -825,26 +865,22 @@ function EvaluationApp() {
               setAuth(next);
             }}
           >
-            <Form.Item
-              name="key"
-              label="管理密钥"
-              rules={[{ required: true, message: "请输入管理密钥" }]}
-            >
-              <Input.Password autoComplete="current-password" />
-            </Form.Item>
-            <Button type="primary" htmlType="submit" block>
+            <FormField label="管理密钥">
+              <PasswordInput
+                name="key"
+                required
+                autoComplete="current-password"
+              />
+            </FormField>
+            <Button variant="primary" type="submit" block>
               连接
             </Button>
-          </Form>
-        </Card>
+          </FormLayout>
+        </Panel>
       </main>
     );
   const modelOptions = models
-    .filter((m) =>
-      active === "detection"
-        ? !/[()]/.test(m)
-        : true,
-    )
+    .filter((m) => (active === "detection" ? !/[()]/.test(m) : true))
     .map((value) => ({ value, label: value }));
   return (
     <main className="evaluation-page">
@@ -901,10 +937,10 @@ function EvaluationApp() {
           ),
         }))}
         tabBarExtraContent={
-          <Space size={4}>
+          <Stack size={4}>
             <Tooltip title="清空全部测试记录">
               <Button
-                type="text"
+                variant="ghost"
                 aria-label="清空全部测试记录"
                 icon={<Trash2 size={15} />}
                 disabled={
@@ -918,7 +954,7 @@ function EvaluationApp() {
             </Tooltip>
             <Tooltip title="刷新凭证和模型">
               <Button
-                type="text"
+                variant="ghost"
                 aria-label="刷新凭证和模型"
                 loading={loading}
                 icon={<RefreshCw size={15} />}
@@ -929,11 +965,11 @@ function EvaluationApp() {
                 }}
               />
             </Tooltip>
-          </Space>
+          </Stack>
         }
       />
       {error && (
-        <Alert
+        <Notice
           type="error"
           showIcon
           title={error}
@@ -941,46 +977,72 @@ function EvaluationApp() {
           onClose={() => setError("")}
         />
       )}
-      {storageError && <Alert type="warning" showIcon title={storageError} />}
+      {storageError && <Notice type="warning" showIcon title={storageError} />}
       <div className="test-intro">
         <p>{tests[active].description}</p>
-        <Collapse
+        <DisclosureList
           ghost
           size="small"
           items={[
             {
               key: "prompt",
               label:
-                isReplyTest || active === "pelican"
-                  ? "查看题目"
-                  : "查看原理",
+                isReplyTest || active === "pelican" ? "查看题目" : "查看原理",
               children:
                 isReplyTest || active === "pelican" ? (
-                  <Typography.Paragraph
+                  <Paragraph
                     className="prompt-text"
-                    copyable={{ text: (active === "ciallo" ? "ciallo" : active === "pelican" ? config.pelican_variants?.find((v: any) => v.id === currentSettings.variant)?.prompt || promptText("pelican-prompt") : promptText(active + "-prompt")) }}
+                    copyable={{
+                      text:
+                        active === "ciallo"
+                          ? "ciallo"
+                          : active === "pelican"
+                            ? config.pelican_variants?.find(
+                                (v: any) => v.id === currentSettings.variant,
+                              )?.prompt || promptText("pelican-prompt")
+                            : promptText(active + "-prompt"),
+                    }}
                   >
-                    <pre>{(active === "ciallo" ? "ciallo" : active === "pelican" ? config.pelican_variants?.find((v: any) => v.id === currentSettings.variant)?.prompt || promptText("pelican-prompt") : promptText(active + "-prompt"))}</pre>
-                  </Typography.Paragraph>
+                    <pre>
+                      {active === "ciallo"
+                        ? "ciallo"
+                        : active === "pelican"
+                          ? config.pelican_variants?.find(
+                              (v: any) => v.id === currentSettings.variant,
+                            )?.prompt || promptText("pelican-prompt")
+                          : promptText(active + "-prompt")}
+                    </pre>
+                  </Paragraph>
                 ) : (
                   <div className="principle">
-                    <p>不同模型生成整数时，对数值、区间、末位数字及相邻数字变化的偏好相对稳定。每次从参考库的 36 道挑战中随机抽取 3 道进行比对。</p>
-                    <p>相邻数字的变化方式不像语言模型时不生成排名；三条回答有效时给出归因概率，一两条有效时只给出排名。概率仅在参考库模型之间分配，不能证明模型身份。</p>
-                    <a href="https://github.com/Ikaleio/lm-detector" target="_blank" rel="noreferrer">LM Fingerpoint Detector <ExternalLink size={12} /></a>
+                    <p>
+                      不同模型生成整数时，对数值、区间、末位数字及相邻数字变化的偏好相对稳定。每次从参考库的
+                      36 道挑战中随机抽取 3 道进行比对。
+                    </p>
+                    <p>
+                      相邻数字的变化方式不像语言模型时不生成排名；三条回答有效时给出归因概率，一两条有效时只给出排名。概率仅在参考库模型之间分配，不能证明模型身份。
+                    </p>
+                    <a
+                      href="https://github.com/Ikaleio/lm-detector"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      LM Fingerpoint Detector <ExternalLink size={12} />
+                    </a>
                   </div>
                 ),
             },
           ]}
         />
       </div>
-      <Card size="small" className="test-controls">
-        <Form
+      <Panel className="test-controls">
+        <FormLayout
           layout="vertical"
           className="control-form"
           onFinish={() => void run(targets.map((a) => a.id))}
         >
-          <Form.Item label="模型">
-            <Select
+          <FormField label="模型">
+            <ChoiceSelect
               aria-label="模型"
               showSearch
               optionFilterProp="label"
@@ -989,10 +1051,10 @@ function EvaluationApp() {
               onChange={(v) => setSetting("model", v)}
               notFoundContent="模型列表为空，请刷新"
             />
-          </Form.Item>
+          </FormField>
           {(isReplyTest || active === "pelican") && (
-            <Form.Item label="推理强度">
-              <Select
+            <FormField label="推理强度">
+              <ChoiceSelect
                 aria-label="推理强度"
                 value={currentSettings.effort}
                 options={["none", "low", "medium", "high", "xhigh", "max"].map(
@@ -1000,18 +1062,24 @@ function EvaluationApp() {
                 )}
                 onChange={(v) => setSetting("effort", v)}
               />
-            </Form.Item>
+            </FormField>
           )}
           {active === "pelican" && (
-            <Form.Item label="测试版本">
-              <Select aria-label="测试版本" value={currentSettings.variant}
-                options={[{value: "original", label: "原版"}, {value: "all-in-one", label: "多合一版"}]}
-                onChange={(v) => setSetting("variant", v)} />
-            </Form.Item>
+            <FormField label="测试版本">
+              <ChoiceSelect
+                aria-label="测试版本"
+                value={currentSettings.variant}
+                options={[
+                  { value: "original", label: "原版" },
+                  { value: "all-in-one", label: "多合一版" },
+                ]}
+                onChange={(v) => setSetting("variant", v)}
+              />
+            </FormField>
           )}
           {isReplyTest && (
-            <Form.Item label="每凭证次数">
-              <InputNumber
+            <FormField label="每凭证次数">
+              <NumberInput
                 aria-label="每凭证次数"
                 min={1}
                 max={10}
@@ -1019,12 +1087,12 @@ function EvaluationApp() {
                 value={currentSettings.runs}
                 onChange={(v) => setSetting("runs", v ?? 1)}
               />
-            </Form.Item>
+            </FormField>
           )}
 
-          {(active === "detection") && (
-            <Form.Item label="每凭证并发">
-              <InputNumber
+          {active === "detection" && (
+            <FormField label="每凭证并发">
+              <NumberInput
                 aria-label="每凭证并发"
                 min={1}
                 max={config.detection.requests}
@@ -1032,12 +1100,12 @@ function EvaluationApp() {
                 value={currentSettings.concurrency}
                 onChange={(v) => setSetting("concurrency", v ?? 1)}
               />
-            </Form.Item>
+            </FormField>
           )}
-          <Form.Item className="batch-control">
+          <FormField className="batch-control">
             <Button
-              type="primary"
-              htmlType="submit"
+              variant="primary"
+              type="submit"
               icon={<Play size={14} />}
               loading={pending}
               disabled={
@@ -1047,29 +1115,31 @@ function EvaluationApp() {
               测试
               {selectedAuths.length ? "所选" : "全部"} ({targets.length})
             </Button>
-          </Form.Item>
-        </Form>
-      </Card>
+          </FormField>
+        </FormLayout>
+      </Panel>
       <div className="test-notes">
         {isReplyTest ? (
           <>
-            <Space size={14} wrap>
-              <StatusLabel tone="success">{active === "ciallo" ? "通过" : "答对"}</StatusLabel>
-              <StatusLabel tone="danger">{active === "ciallo" ? "未通过 / 请求出错" : "答错 / 请求出错"}</StatusLabel>
+            <Stack size={14} wrap>
+              <StatusLabel tone="success">
+                {active === "ciallo" ? "通过" : "答对"}
+              </StatusLabel>
+              <StatusLabel tone="danger">
+                {active === "ciallo" ? "未通过 / 请求出错" : "答错 / 请求出错"}
+              </StatusLabel>
               <StatusLabel tone="neutral">已跳过</StatusLabel>
-            </Space>
+            </Stack>
             <span>
-              {active === "ciallo" ? "通过率" : "正确率"}按 {currentSettings.model} ({currentSettings.effort}) 统计
+              {active === "ciallo" ? "通过率" : "正确率"}按{" "}
+              {currentSettings.model} ({currentSettings.effort}) 统计
             </span>
           </>
         ) : (
           <span>
-            每个凭证{" "}
-            {active === "detection" ? config.detection.requests : 1}{" "}
+            每个凭证 {active === "detection" ? config.detection.requests : 1}{" "}
             次请求
-            {active === "detection"
-              ? "（失败会重试）"
-              : ""}
+            {active === "detection" ? "（失败会重试）" : ""}
           </span>
         )}
       </div>
@@ -1077,15 +1147,26 @@ function EvaluationApp() {
         <div className="credential-provider-tabs">
           <ProviderFilterTabs
             providers={["all", ...[...new Set(auths.map(provider))].sort()]}
-            counts={Object.fromEntries([["all", auths.length], ...[...new Set(auths.map(provider))].map(value => [value, auths.filter(a => provider(a) === value).length])])}
+            counts={Object.fromEntries([
+              ["all", auths.length],
+              ...[...new Set(auths.map(provider))].map((value) => [
+                value,
+                auths.filter((a) => provider(a) === value).length,
+              ]),
+            ])}
             active={type}
-            onChange={value => changeFilter(() => { setType(value); setPlan("all"); })}
+            onChange={(value) =>
+              changeFilter(() => {
+                setType(value);
+                setPlan("all");
+              })
+            }
           />
         </div>
         <div className="credential-toolbar">
-          <Space size={12} wrap>
+          <Stack size={12} wrap>
             <strong>凭证</strong>
-            <Space size={6}>
+            <Stack size={6}>
               <Switch
                 size="small"
                 aria-label="仅启用"
@@ -1093,8 +1174,8 @@ function EvaluationApp() {
                 onChange={(v) => changeFilter(() => setEnabledOnly(v))}
               />
               <span className="secondary">仅启用</span>
-            </Space>
-            <Select
+            </Stack>
+            <ChoiceSelect
               aria-label="订阅类型"
               value={plan}
               options={
@@ -1104,9 +1185,9 @@ function EvaluationApp() {
               }
               onChange={(v) => changeFilter(() => setPlan(v))}
             />
-          </Space>
-          <Space size={4}>
-            <Input.Search
+          </Stack>
+          <Stack size={4}>
+            <SearchInput
               aria-label="搜索凭证"
               placeholder="搜索凭证"
               value={search}
@@ -1117,7 +1198,9 @@ function EvaluationApp() {
               <Button
                 aria-label={masked ? "取消脱敏" : "脱敏"}
                 aria-pressed={masked}
-                className={masked ? "privacy-toggle is-active" : "privacy-toggle"}
+                className={
+                  masked ? "privacy-toggle is-active" : "privacy-toggle"
+                }
                 icon={masked ? <EyeOff size={15} /> : <Eye size={15} />}
                 onClick={() => setMasked(!masked)}
               >
@@ -1126,7 +1209,7 @@ function EvaluationApp() {
             </Tooltip>
             <Tooltip title={`清空${tests[active].label}记录`}>
               <Button
-                type="text"
+                variant="ghost"
                 aria-label={`清空${tests[active].label}记录`}
                 icon={<Trash2 size={15} />}
                 disabled={
@@ -1135,9 +1218,9 @@ function EvaluationApp() {
                 onClick={() => setClearTarget(active)}
               />
             </Tooltip>
-          </Space>
+          </Stack>
         </div>
-        <Table<Credential>
+        <RecordTable<Credential>
           size="small"
           className="credential-table"
           rowKey="id"
@@ -1160,8 +1243,7 @@ function EvaluationApp() {
           }}
           locale={{
             emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
+              <EmptyState
                 description={
                   error ? "读取失败，请刷新重试" : "没有符合筛选条件的凭证"
                 }
@@ -1170,16 +1252,16 @@ function EvaluationApp() {
           }}
         />
       </section>
-      <Modal
+      <AppModal
         title={detail ? tests[detail.test].label + "详情" : ""}
         open={!!detail}
         onCancel={() => setDetail(null)}
         footer={null}
-        width={920}
+        size="wide"
         destroyOnHidden
       >
         {detailError ? (
-          <Alert type="error" showIcon title={detailError} />
+          <Notice type="error" showIcon title={detailError} />
         ) : detailData && detail ? (
           <RecordDetail
             key={detail.authId + detail.record.id + detail.record.time}
@@ -1188,11 +1270,11 @@ function EvaluationApp() {
           />
         ) : (
           <div className="detail-loading">
-            <Spin />
+            <Spinner />
           </div>
         )}
-      </Modal>
-      <Modal
+      </AppModal>
+      <AppModal
         title={`清空${clearTarget === "all" ? "全部测试" : clearTarget ? tests[clearTarget].label : ""}记录？`}
         open={!!clearTarget}
         onCancel={() => setClearTarget(null)}
@@ -1204,18 +1286,16 @@ function EvaluationApp() {
         <p>
           此操作对所有凭证生效，删除后无法恢复。正在进行的测试不受影响，完成后仍会保存结果。
         </p>
-      </Modal>
+      </AppModal>
     </main>
   );
 }
 function Root() {
-  const theme = useOmcTheme();
   return (
-    <ConfigProvider theme={theme} locale={zhCN} variant="filled" tag={{ variant: "filled" }} wave={{ disabled: true }} button={{ autoInsertSpace: false }}>
-      <AntApp>
-        <EvaluationApp />
-      </AntApp>
-    </ConfigProvider>
+    <>
+      <Toaster />
+      <EvaluationApp />
+    </>
   );
 }
 createRoot(document.getElementById("root")!).render(<Root />);

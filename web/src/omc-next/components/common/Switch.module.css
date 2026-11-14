@@ -1,0 +1,106 @@
+/* Three numbers are the whole geometry: the knob sits 2px inside the track, and its travel follows
+   from them, so a size is one block and its parts cannot disagree. A switch is a dot travelling in
+   its slot, so both are fully round: the track is a pill, the knob a circle. */
+.switch {
+  --switch-width: 34px;
+  --switch-height: 20px;
+  --switch-thumb: 16px;
+  --switch-travel: calc(var(--switch-width) - 4px - var(--switch-thumb));
+
+  position: relative;
+  display: inline-block;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--switch-width);
+  height: var(--switch-height);
+  padding: 0;
+  vertical-align: middle;
+  /* Off is a well: an ink wash with its ring drawn inside, so the slot reads on any ground. */
+  background: color-mix(in srgb, var(--fg) 14%, transparent);
+  box-shadow: inset 0 0 0 1px var(--fine-ring);
+  border: 0;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.is-small {
+  --switch-width: 28px;
+  --switch-height: 16px;
+  --switch-thumb: 12px;
+}
+
+/* The knob is the page's lightest ink: the page itself on a light palette, the text colour on a
+   dark one, so it reads as the same object on either track. It moves by transform: a slide on
+   `left` would be a layout transition. */
+.thumb {
+  --switch-knob: var(--fg);
+
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  box-sizing: border-box;
+  width: var(--switch-thumb);
+  height: var(--switch-thumb);
+  background: var(--switch-knob);
+  border: 2px solid var(--switch-knob);
+  border-radius: 50%;
+  /* The knob is a standing control, so it takes the control material rather than a shadow of its own. */
+  box-shadow: var(--shadow-control);
+  transition: transform var(--motion-base) var(--ease-out);
+}
+
+:global(:root[data-theme-mode='light']) .thumb {
+  --switch-knob: var(--bg);
+}
+
+.switch:hover:enabled {
+  background: color-mix(in srgb, var(--fg) 22%, transparent);
+}
+
+/* On, the track takes the semantic fill: an enabled setting reads as the console's healthy green.
+   The side the knob sits on states the value without the colour. */
+.is-checked,
+.is-checked:hover:enabled {
+  background: var(--success);
+  box-shadow: none;
+}
+
+.is-checked .thumb {
+  transform: translateX(var(--switch-travel));
+}
+
+/* A press leans the knob toward the side it is about to take. */
+.switch:active:enabled .thumb {
+  transform: translateX(2px);
+}
+
+.is-checked:active:enabled .thumb {
+  transform: translateX(calc(var(--switch-travel) - 2px));
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+/* Pending is a hollow knob, not a spinner: the write is short, and the held position already
+   says which state was asked for. It keeps full strength so it does not read as unavailable. */
+.is-loading:disabled {
+  cursor: progress;
+  opacity: 1;
+}
+
+.is-loading .thumb {
+  background: transparent;
+}
+
+/* Under a finger the switch keeps its size and its target grows to a fingertip around it. The
+   growth stays inside the gaps a row leaves between its controls, so it never takes a neighbour's tap. */
+@media (pointer: coarse) {
+  .switch::before {
+    content: '';
+    position: absolute;
+    inset: -12px -6px;
+  }
+}

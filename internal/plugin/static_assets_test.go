@@ -114,33 +114,17 @@ func TestStaticBundlePreservesScriptOrderAndChangesURL(t *testing.T) {
 	}
 }
 
-func TestSharedOMCFontsPrecedePluginFallback(t *testing.T) {
-	count := 0
-	for path, asset := range browserPage.assets {
-		if !strings.HasSuffix(path, ".woff2") {
-			continue
+func TestFontsStayWithinPluginResources(t *testing.T) {
+	fonts := 0
+	for _, asset := range browserPage.assets {
+		if asset.Headers.Get("Content-Type") == "font/woff2" {
+			fonts++
 		}
-		shared := omcFontResource(asset.Body)
-		if shared == "" {
-			continue
-		}
-		count++
-		found := false
-		for cssPath, css := range browserPage.assets {
-			if !strings.HasSuffix(cssPath, ".css") {
-				continue
-			}
-			first, fallback := bytes.Index(css.Body, []byte(shared)), bytes.Index(css.Body, []byte(path))
-			found = first >= 0 && fallback > first
-		}
-		if !found {
-			t.Fatal("shared face does not precede its fallback")
+		if strings.HasPrefix(asset.Headers.Get("Content-Type"), "text/css") && bytes.Contains(asset.Body, []byte("/omc/assets/")) {
+			t.Fatal("plugin still depends on console build asset names")
 		}
 	}
-	if count != 2 {
-		t.Fatalf("expected two existing OMC faces, got %d", count)
-	}
-	if omcFontResource([]byte("different font")) != "" {
-		t.Fatal("unknown font mapped to OMC")
+	if fonts < 3 {
+		t.Fatalf("missing regular, semibold or bold fallback fonts: %d", fonts)
 	}
 }
