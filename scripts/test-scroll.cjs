@@ -14,7 +14,26 @@ async function waitForScroll(frame, start) {
   await frame.waitForFunction(y => scrollY > y + 5, start, { timeout: 3000 });
   return (await frameMetrics(frame)).y;
 }
-async function reset(frame, page) { await frame.evaluate(() => scrollTo(0, 0)); await nextPaint(page); }
+async function settled(frame) {
+  // Wheel delivery and focus-driven scrolling can continue after the input promise resolves.
+  await frame.evaluate(() => new Promise((resolve, reject) => {
+    let previous = scrollY, stableFrames = 0;
+    const deadline = performance.now() + 3000;
+    const step = () => {
+      stableFrames = scrollY === previous ? stableFrames + 1 : 0;
+      previous = scrollY;
+      if (stableFrames >= 4) resolve();
+      else if (performance.now() >= deadline) reject(new Error('Scrolling did not settle'));
+      else requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }));
+}
+async function reset(frame, page) {
+  await settled(frame);
+  await frame.evaluate(() => scrollTo(0, 0));
+  await settled(frame);
+}
 async function swipe(page, session, viewport) {
   const x = viewport.width - 8, y = viewport.height - 80;
   await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
@@ -61,13 +80,16 @@ async function swipe(page, session, viewport) {
       else await frame.getByRole('button', { name: '清空全部测试记录', exact: true }).click();
       const dialog = frame.getByRole('dialog').first();
       await dialog.waitFor();
+      await frame.waitForFunction(() => getComputedStyle(document.body).overflowY === 'hidden');
+      await settled(frame);
       const locked = (await frameMetrics(frame)).y;
       await page.mouse.move(viewport.width - 8, viewport.height / 2);
       await page.mouse.wheel(0, 400);
-      await nextPaint(page); await nextPaint(page);
+      await settled(frame);
       assert.equal((await frameMetrics(frame)).y, locked, 'a modal must still lock the background');
       await page.keyboard.press('Escape');
       await dialog.waitFor({ state: 'hidden' });
+      await frame.waitForFunction(() => getComputedStyle(document.body).overflowY !== 'hidden');
       await reset(frame, page);
       if (mobile) {
         const session = await context.newCDPSession(page);
