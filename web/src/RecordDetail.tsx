@@ -150,7 +150,7 @@ export function RecordDetail({
             <Notice
               type="warning"
               showIcon
-              title="相邻数字的变化方式与参考库中的语言模型不同，因此未生成排名。"
+              title="数字序列的变化方式与参考库中的语言模型不同，因此未生成排名。"
             />
           )}
           {r.status === "partial" && <p className="secondary">部分结果</p>}

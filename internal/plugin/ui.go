@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"html"
 	"strings"
+
+	"cpa-codex-candy-eval/internal/fingerprint"
 )
 
 //go:embed web/ui.html
@@ -39,7 +41,7 @@ var omcLicense string
 
 var uiHTML = func() []byte {
 	config, _ := json.Marshal(map[string]any{
-		"detection":        map[string]any{"requests": fingerprintTarget, "aliases": fingerprintAliases},
+		"detection":        map[string]any{"requests": fingerprint.ChallengeCount, "aliases": fingerprintAliases},
 		"pelican_variants": pelicanVariants,
 	})
 	return []byte(strings.NewReplacer(
@@ -47,7 +49,7 @@ var uiHTML = func() []byte {
 		"<!--PLUGIN_VERSION-->", pluginVersion,
 		"<!--CANDY_PROMPT-->", html.EscapeString(candyPrompt),
 		"<!--PELICAN_PROMPT-->", html.EscapeString(pelicanVariants[0].Prompt),
-		"<!--DETECTOR_LICENSE-->", "<!-- LM Fingerpoint Detector\n"+detectorLicense+"-->",
+		"<!--DETECTOR_LICENSE-->", "<!-- LM Fingerpoint Detector\n"+fingerprint.License+"-->",
 		"<!--OMC_LICENSE-->", "<!-- Oh My CPA components\n"+omcLicense+"-->",
 		"/*REACT_CONFIG*/{}", string(config),
 		"/*MARKDOWN_SCRIPT*/", markdownScript,

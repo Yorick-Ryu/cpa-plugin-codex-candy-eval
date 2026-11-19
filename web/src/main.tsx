@@ -13,7 +13,7 @@ import {
   Notice,
   NumberInput,
   Panel,
-  Paragraph,
+  PromptText,
   PasswordInput,
   ProgressMeter,
   RecordTable,
@@ -1019,29 +1019,15 @@ function EvaluationApp() {
                   isReplyTest || active === "pelican" ? "查看题目" : "查看原理",
                 children:
                   isReplyTest || active === "pelican" ? (
-                    <Paragraph
-                      className="prompt-text"
-                      copyable={{
-                        text:
-                          active === "ciallo"
-                            ? "ciallo"
-                            : active === "pelican"
-                              ? config.pelican_variants?.find(
-                                  (v: any) => v.id === currentSettings.variant,
-                                )?.prompt || promptText("pelican-prompt")
-                              : promptText(active + "-prompt"),
-                      }}
-                    >
-                      <pre>
-                        {active === "ciallo"
-                          ? "ciallo"
-                          : active === "pelican"
-                            ? config.pelican_variants?.find(
-                                (v: any) => v.id === currentSettings.variant,
-                              )?.prompt || promptText("pelican-prompt")
-                            : promptText(active + "-prompt")}
-                      </pre>
-                    </Paragraph>
+                    <PromptText>
+                      {active === "ciallo"
+                        ? "ciallo"
+                        : active === "pelican"
+                          ? config.pelican_variants?.find(
+                              (v: any) => v.id === currentSettings.variant,
+                            )?.prompt || promptText("pelican-prompt")
+                          : promptText(active + "-prompt")}
+                    </PromptText>
                   ) : active === "siwc" ? (
                     <p>检测会通过所选凭证的 SIWC 通道发送一次简短请求。请先绑定 SIWC 并开启「使用 SIWC」。仅根据明确的错误代码区分订阅共享受限，普通 403 不会被判定为该限制。</p>
                   ) : (
@@ -1051,7 +1037,7 @@ function EvaluationApp() {
                         36 道挑战中随机抽取 3 道进行比对。
                       </p>
                       <p>
-                        相邻数字的变化方式不像语言模型时不生成排名；三条回答有效时给出归因概率，一两条有效时只给出排名。概率仅在参考库模型之间分配，不能证明模型身份。
+                        评分会检查相邻数字的变化，以及相隔最多三位的数字有多接近。序列特征不像语言模型时不生成排名。三条回答有效时给出归因概率，一两条有效时只给出排名。概率仅在参考库模型之间分配，不能证明模型身份。
                       </p>
                       <a
                         href="https://github.com/Ikaleio/lm-detector"

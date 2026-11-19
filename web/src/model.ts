@@ -74,7 +74,7 @@ export const tests: Record<
   },
   ciallo: {
     label: "Ciallo", field: "results", scope: "/candy",
-    description: "发送 ciallo，回复含独立词 ciallo 为通过，含 ciao 为未通过，忽略大小写、标点和表情；两者都有或都没有则无法判断。历史按当前规则显示，原回复保留。仅供娱乐，不能确认模型身份或能力。",
+    description: "发送 ciallo，回复含独立词 ciallo 为通过，含 ciao 为未通过，忽略大小写、标点和表情；两者都有或都没有则无法判断。",
   },
   detection: {
     label: "指纹检测",

@@ -19,6 +19,7 @@ auths.find((a) => a.id === "workspace-gamma@example.test").priority = 100;
     if (error.type !== "not-implemented") errors.push(error.message);
   });
   const requests = [];
+  let copiedText;
   const channels = [];
   const dom = new JSDOM(page(), {
     url: origin + (hosted ? "/omc/api/v1/plugin-host/v0/resource/plugins/omcpa-codex-candy-eval/ui" : "/ui"),
@@ -36,6 +37,9 @@ auths.find((a) => a.id === "workspace-gamma@example.test").priority = 100;
         }
       };
       window.TextEncoder = TextEncoder;
+      Object.defineProperty(window.navigator, "clipboard", {
+        value: { async writeText(text) { copiedText = text; } },
+      });
       window.localStorage.setItem(
         "omcpa-codex-candy-eval.omc.v2.settings",
         JSON.stringify({
@@ -268,6 +272,14 @@ auths.find((a) => a.id === "workspace-gamma@example.test").priority = 100;
     await wait(() =>
       assert(role("combobox", "测试版本").textContent.includes("多合一版")),
     );
+    fireEvent.click(role("button", "查看题目"), { detail: 1 });
+    await wait(() => assert(role("button", "复制 / Copy")));
+    const copyPrompt = role("button", "复制 / Copy");
+    const prompt = copyPrompt.parentElement.querySelector("pre");
+    assert(prompt?.textContent);
+    fireEvent.click(copyPrompt);
+    await wait(() => assert(role("button", "已复制 / Copied")));
+    assert.equal(copiedText, prompt.textContent);
     fireEvent.click(role("button", "测试全部 (1)"));
     await wait(() =>
       assert(
@@ -282,6 +294,8 @@ auths.find((a) => a.id === "workspace-gamma@example.test").priority = 100;
     await wait(() => assert(role("tabpanel", "Ciallo")));
     assert(!queryByRole(body, "combobox", { name: "测试方法" }));
     assert(!body.textContent.includes("Ciallo 规则（非模型身份鉴定）"));
+    assert(!body.textContent.includes("历史按当前规则显示"));
+    assert(!body.textContent.includes("仅供娱乐，不能确认模型身份或能力"));
     fireEvent.click(role("button", "测试全部 (1)"));
     await wait(() =>
       assert(

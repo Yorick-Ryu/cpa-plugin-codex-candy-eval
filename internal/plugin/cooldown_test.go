@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+
+	"cpa-codex-candy-eval/internal/fingerprint"
 )
 
 func TestCooldownErrorClassification(t *testing.T) {
@@ -52,7 +54,7 @@ func TestHostCooldownResultsAcrossTests(t *testing.T) {
 	if r.Status != "skipped" || r.Error != modelCooldownMessage || r.Attribution != nil {
 		t.Fatalf("detection: %+v", r)
 	}
-	if calls != 1+fingerprintTarget {
+	if calls != 1+fingerprint.ChallengeCount {
 		t.Fatalf("cooldown retried: %d calls", calls)
 	}
 	for _, sample := range r.Samples {

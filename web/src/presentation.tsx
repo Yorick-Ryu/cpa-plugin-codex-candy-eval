@@ -169,23 +169,16 @@ export function Text({
   children,
   type,
   strong,
-  copyable,
   style,
   ellipsis,
   ...props
 }: React.PropsWithChildren<{
   type?: string;
   strong?: boolean;
-  copyable?: boolean | { text: string };
   style?: React.CSSProperties;
   className?: string;
   ellipsis?: boolean;
 }>) {
-  const [copied, setCopied] = React.useState(false);
-  const reset = React.useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  React.useEffect(() => () => clearTimeout(reset.current), []);
   return (
     <span
       {...props}
@@ -204,40 +197,35 @@ export function Text({
       }}
     >
       {children}
-      {copyable && (
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          aria-label={copied ? "已复制 / Copied" : "复制 / Copy"}
-          icon={copied ? <Check size={13} /> : <Copy size={13} />}
-          onClick={() =>
-            void navigator.clipboard
-              .writeText(
-                typeof copyable === "object" ? copyable.text : String(children),
-              )
-              .then(() => {
-                setCopied(true);
-                clearTimeout(reset.current);
-                reset.current = setTimeout(() => setCopied(false), 1500);
-              })
-              .catch(() => toast.error("复制失败 / Copy failed"))
-          }
-        />
-      )}
     </span>
   );
 }
-export function Paragraph({
-  children,
-  copyable,
-  ...props
-}: React.ComponentProps<typeof Text>) {
+export function PromptText({ children }: { children: string }) {
+  const [copied, setCopied] = React.useState(false);
+  const reset = React.useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  React.useEffect(() => () => clearTimeout(reset.current), []);
   return (
-    <p className="m-0 text-base leading-relaxed">
-      <Text {...props} copyable={copyable}>
-        {children}
-      </Text>
-    </p>
+    <div className="prompt-text">
+      <pre>{children}</pre>
+      <Button
+        size="icon-sm"
+        variant="ghost"
+        aria-label={copied ? "已复制 / Copied" : "复制 / Copy"}
+        icon={copied ? <Check size={13} /> : <Copy size={13} />}
+        onClick={() =>
+          void navigator.clipboard
+            .writeText(children)
+            .then(() => {
+              setCopied(true);
+              clearTimeout(reset.current);
+              reset.current = setTimeout(() => setCopied(false), 1500);
+            })
+            .catch(() => toast.error("复制失败 / Copy failed"))
+        }
+      />
+    </div>
   );
 }
 export function Heading({

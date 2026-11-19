@@ -93,7 +93,11 @@ h3 {
 }
 .prompt-text {
   position: relative;
-  margin: 0 !important;
+}
+.prompt-text > button {
+  position: absolute;
+  top: 4px;
+  right: 4px;
 }
 .prompt-text pre {
   padding-right: 44px;

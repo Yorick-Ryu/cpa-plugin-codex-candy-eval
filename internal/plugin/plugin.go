@@ -14,7 +14,7 @@ import (
 
 const (
 	pluginID      = "omcpa-codex-candy-eval"
-	pluginVersion = "0.4.6-omc.1"
+	pluginVersion = "0.4.7-omc.1"
 	ABIVersion    = 1
 	// rpcSchemaVersion is the version of CPA's plugin RPC contract, not of the state file.
 	rpcSchemaVersion = 6

@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"cpa-codex-candy-eval/internal/fingerprint"
 )
 
 func setupTest(t *testing.T) {
@@ -70,7 +72,7 @@ func TestRegistration(t *testing.T) {
 // The page inlines its template parts, and an inline script ends at the first "</script" anywhere in its text.
 func TestPage(t *testing.T) {
 	page := string(uiHTML)
-	for _, want := range []string{"版本 v" + pluginVersion, `"requests":3`, `"gpt-6.1-sol":"gpt-6-astra"`, detectorLicense, "Oh My CPA components"} {
+	for _, want := range []string{"版本 v" + pluginVersion, `"requests":3`, `"gpt-6.1-sol":"gpt-6-astra"`, fingerprint.License, "Oh My CPA components"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("page lacks %q", want)
 		}
